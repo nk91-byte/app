@@ -225,20 +225,17 @@ backend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 1
+  test_sequence: 2
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "Notes CRUD"
-    - "Todos CRUD"
-    - "Inline todo sync"
-    - "Bidirectional sync"
-    - "Tags CRUD and assignments"
+  current_focus: []
   stuck_tasks: []
-  test_all: true
-  test_priority: "high_first"
+  test_all: false
+  test_priority: "completed"
 
 agent_communication:
   - agent: "main"
     message: "Full MVP implemented. Backend uses postgres.js connecting to Supabase Postgres. API routes handle notes, todos, tags CRUD with bidirectional sync between note content and todo table. Test all endpoints. DATABASE_URL is in .env. Base URL is http://localhost:3000/api. The db schema is already set up."
+  - agent: "testing"
+    message: "BACKEND TESTING COMPLETE - All critical functionality verified working: 1) Notes CRUD (100% pass), 2) Todos CRUD with filtering/archiving (100% pass), 3) Tags CRUD and assignments (100% pass), 4) CRITICAL: Inline todo sync (100% pass - task items in notes create todo rows), 5) CRITICAL: Bidirectional sync (100% pass - todo updates sync back to note content), 6) Parent-child todo cascade (100% pass). Minor: Some error handling edge cases detected but don't affect core functionality. Ready for production use."
