@@ -101,3 +101,123 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "Build a Notebook + To-Do system with Next.js + Supabase (Postgres). Two views via sidebar: Notebook and To-Do List. Todos are first-class DB records synced between both views. Notes use Tiptap editor with inline task items backed by todo DB records."
+
+backend:
+  - task: "Database setup endpoint (POST /api/db/setup)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Schema setup works, creates all tables and indexes in Supabase"
+
+  - task: "Notes CRUD (GET/POST/PUT/DELETE /api/notes)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Tested create, list, get, update, delete. Content parsed from JSONB correctly."
+
+  - task: "Todos CRUD (GET/POST/PUT/DELETE /api/todos)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Create, list, toggle, archive tested via curl."
+
+  - task: "Inline todo sync (note save creates/updates todo rows)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Task items in note content create todo rows with note_id. Content stores todoId references."
+
+  - task: "Tags CRUD and assignments (GET/POST/DELETE /api/tags, note-tags, todo-tags)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Tag creation tested. Assignment endpoints implemented."
+
+  - task: "Todo toggle and cascade (PATCH /api/todos/:id/toggle)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Toggle works, cascades to children when marking parent done."
+
+  - task: "Todo archive (PATCH /api/todos/:id/archive)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Archive/unarchive implemented."
+
+  - task: "Bidirectional sync (todo update syncs back to note content)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "When todo is updated from todo view, note content is also updated."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Notes CRUD"
+    - "Todos CRUD"
+    - "Inline todo sync"
+    - "Bidirectional sync"
+    - "Tags CRUD and assignments"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "Full MVP implemented. Backend uses postgres.js connecting to Supabase Postgres. API routes handle notes, todos, tags CRUD with bidirectional sync between note content and todo table. Test all endpoints. DATABASE_URL is in .env. Base URL is http://localhost:3000/api. The db schema is already set up."
