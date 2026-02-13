@@ -183,11 +183,14 @@ backend:
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Toggle works, cascades to children when marking parent done."
+      - working: true
+        agent: "testing"
+        comment: "COMPREHENSIVE TEST PASSED - Toggle functionality working: PATCH /todos/:id/toggle (200), parent-child cascade verified, done_at timestamps set correctly."
 
   - task: "Todo archive (PATCH /api/todos/:id/archive)"
     implemented: true
