@@ -48,6 +48,7 @@ export default function NoteEditor({ content, onUpdate, placeholder }) {
   const isUpdatingRef = useRef(false);
 
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         history: true,
