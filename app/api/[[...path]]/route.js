@@ -180,7 +180,7 @@ async function getNotes(searchParams) {
       SELECT * FROM notes
       WHERE owner_id = ${ownerId}
       ${search ? sql`AND (title ILIKE ${'%' + search + '%'})` : sql``}
-      ORDER BY n.updated_at DESC
+      ORDER BY updated_at DESC
     `;
   }
 
