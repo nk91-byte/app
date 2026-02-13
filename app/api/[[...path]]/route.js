@@ -447,16 +447,20 @@ async function updateTodo(id, body) {
 
   if (existing.note_id) {
     const [note] = await sql`SELECT * FROM notes WHERE id = ${existing.note_id}`;
-    if (note && note.content) {
-      const updatedContent = updateTodoInContent(JSON.parse(JSON.stringify(note.content)), id, newText, newIsDone);
-      await sql`UPDATE notes SET content = ${JSON.stringify(updatedContent)}::jsonb, updated_at = NOW() WHERE id = ${existing.note_id}`;
+    if (note) {
+      const parsedNote = parseNote(note);
+      if (parsedNote.content) {
+        const updatedContent = updateTodoInContent(JSON.parse(JSON.stringify(parsedNote.content)), id, newText, newIsDone);
+        await sql`UPDATE notes SET content = ${JSON.stringify(updatedContent)}::jsonb, updated_at = NOW() WHERE id = ${existing.note_id}`;
+      }
     }
   }
 
   if (note_id && note_id !== existing.note_id) {
     const [note] = await sql`SELECT * FROM notes WHERE id = ${note_id}`;
     if (note) {
-      const updatedContent = insertTaskItemIntoContent(note.content || { type: 'doc', content: [] }, id, newText);
+      const parsedNote = parseNote(note);
+      const updatedContent = insertTaskItemIntoContent(parsedNote.content || { type: 'doc', content: [] }, id, newText);
       await sql`UPDATE notes SET content = ${JSON.stringify(updatedContent)}::jsonb, updated_at = NOW() WHERE id = ${note_id}`;
     }
   }
