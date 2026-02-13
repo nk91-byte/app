@@ -138,11 +138,14 @@ backend:
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Create, list, toggle, archive tested via curl."
+      - working: true
+        agent: "testing"
+        comment: "COMPREHENSIVE TEST PASSED - All CRUD operations working: Create todo (201), List todos with status filters (200), Update todo (200), Toggle todo (200), Archive todo (200). Archive filtering works correctly. Parent-child cascade functionality verified."
 
   - task: "Inline todo sync (note save creates/updates todo rows)"
     implemented: true
