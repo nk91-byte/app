@@ -198,11 +198,14 @@ backend:
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Archive/unarchive implemented."
+      - working: true
+        agent: "testing"
+        comment: "COMPREHENSIVE TEST PASSED - Archive functionality working: PATCH /todos/:id/archive (200), archived_at timestamp set, show_archived filtering works correctly."
 
   - task: "Bidirectional sync (todo update syncs back to note content)"
     implemented: true
