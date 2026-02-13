@@ -322,7 +322,7 @@ async function updateNote(id, body) {
   }
 
   const tags = await sql`SELECT t.* FROM note_tags nt JOIN tags t ON nt.tag_id = t.id WHERE nt.note_id = ${id}`;
-  return NextResponse.json({ ...note, tags });
+  return NextResponse.json({ ...parseNote(note), tags });
 }
 
 async function deleteNote(id) {
