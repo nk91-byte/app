@@ -4,6 +4,20 @@ import { v4 as uuidv4 } from 'uuid';
 
 const DEFAULT_OWNER = '00000000-0000-0000-0000-000000000001';
 
+// ===== PARSE HELPERS =====
+function parseJsonField(val) {
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'string') {
+    try { return JSON.parse(val); } catch { return val; }
+  }
+  return val;
+}
+
+function parseNote(note) {
+  if (!note) return note;
+  return { ...note, content: parseJsonField(note.content) };
+}
+
 // ===== HELPER FUNCTIONS =====
 
 function getTextFromNode(node) {
