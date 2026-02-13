@@ -234,7 +234,7 @@ async function createNote(body) {
     RETURNING *
   `;
 
-  return NextResponse.json(note, { status: 201 });
+  return NextResponse.json(parseNote(note), { status: 201 });
 }
 
 async function getNote(id) {
