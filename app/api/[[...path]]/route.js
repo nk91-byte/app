@@ -255,6 +255,7 @@ async function updateNote(id, body) {
 
   const [existing] = await sql`SELECT * FROM notes WHERE id = ${id}`;
   if (!existing) return NextResponse.json({ error: 'Note not found' }, { status: 404 });
+  const existingParsed = parseNote(existing);
 
   let updatedContent = content;
   if (content) {
