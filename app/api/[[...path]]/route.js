@@ -495,9 +495,12 @@ async function toggleTodo(id, body) {
 
   if (existing.note_id) {
     const [note] = await sql`SELECT * FROM notes WHERE id = ${existing.note_id}`;
-    if (note && note.content) {
-      const updatedContent = updateTodoInContent(JSON.parse(JSON.stringify(note.content)), id, existing.text, newDone);
-      await sql`UPDATE notes SET content = ${JSON.stringify(updatedContent)}::jsonb, updated_at = NOW() WHERE id = ${existing.note_id}`;
+    if (note) {
+      const parsedNote = parseNote(note);
+      if (parsedNote.content) {
+        const updatedContent = updateTodoInContent(JSON.parse(JSON.stringify(parsedNote.content)), id, existing.text, newDone);
+        await sql`UPDATE notes SET content = ${JSON.stringify(updatedContent)}::jsonb, updated_at = NOW() WHERE id = ${existing.note_id}`;
+      }
     }
   }
 
