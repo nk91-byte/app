@@ -213,11 +213,14 @@ backend:
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "When todo is updated from todo view, note content is also updated."
+      - working: true
+        agent: "testing"
+        comment: "CRITICAL FEATURE VERIFIED - Bidirectional sync working perfectly: Todo updates from todo view sync back to note content, both text changes and completion status are reflected in note taskItems."
 
 metadata:
   created_by: "main_agent"
