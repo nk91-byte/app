@@ -168,11 +168,14 @@ backend:
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Tag creation tested. Assignment endpoints implemented."
+      - working: true
+        agent: "testing"
+        comment: "COMPREHENSIVE TEST PASSED - Tags CRUD working: Create tag (201), List tags (200), Tag assignments to notes/todos verified, tag removal working, filtering by tags functional."
 
   - task: "Todo toggle and cascade (PATCH /api/todos/:id/toggle)"
     implemented: true
