@@ -153,11 +153,14 @@ backend:
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Task items in note content create todo rows with note_id. Content stores todoId references."
+      - working: true
+        agent: "testing"
+        comment: "CRITICAL FEATURE VERIFIED - Inline todo sync working perfectly: Note update with taskItems creates todo rows, todoIds assigned to content, completed status preserved, text extraction correct."
 
   - task: "Tags CRUD and assignments (GET/POST/DELETE /api/tags, note-tags, todo-tags)"
     implemented: true
