@@ -306,7 +306,7 @@ async function updateNote(id, body) {
 
   const [note] = await sql`
     UPDATE notes SET
-      title = ${title !== undefined ? title : existing.title},
+      title = ${title !== undefined ? title : existingParsed.title},
       content = ${updatedContent ? JSON.stringify(updatedContent) : null}::jsonb,
       updated_at = NOW()
     WHERE id = ${id}
