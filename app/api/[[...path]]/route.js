@@ -215,7 +215,7 @@ async function getNotes(searchParams) {
   }
 
   const result = notes.map(n => ({
-    ...n,
+    ...parseNote(n),
     tags: noteTagMap[n.id] || [],
   }));
 
