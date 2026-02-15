@@ -164,6 +164,11 @@ async function setupDatabase() {
   const sql = getDb();
   try {
     await sql.unsafe(SCHEMA_SQL);
+    // Migration: convert existing tags to 'source' type if no source tags exist yet
+    const sourceCheck = await sql`SELECT COUNT(*) as cnt FROM tags WHERE type = 'source'`;
+    if (parseInt(sourceCheck[0]?.cnt || '0') === 0) {
+      await sql`UPDATE tags SET type = 'source' WHERE type = 'project'`;
+    }
     return NextResponse.json({ success: true, message: 'Database schema created' });
   } catch (error) {
     console.error('Schema setup error:', error);
