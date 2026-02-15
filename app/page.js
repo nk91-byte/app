@@ -959,27 +959,61 @@ export default function App() {
             ) : (
               /* ===== TODO VIEW ===== */
               <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <Input
-                    id="new-todo-input"
-                    value={newTodoText}
-                    onChange={e => setNewTodoText(e.target.value)}
-                    placeholder="Add a new todo..."
-                    className="h-9 text-sm"
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' && newTodoText.trim()) {
-                        createTodo(newTodoText.trim());
-                      }
-                    }}
-                  />
-                  <Button
-                    size="sm"
-                    className="h-9"
-                    onClick={() => newTodoText.trim() && createTodo(newTodoText.trim())}
-                    disabled={!newTodoText.trim()}
-                  >
-                    <Plus size={14} className="mr-1" /> Add
-                  </Button>
+                <div className="mb-4 border rounded-lg p-3 bg-muted/20">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="new-todo-input"
+                      value={newTodoText}
+                      onChange={e => setNewTodoText(e.target.value)}
+                      placeholder="Add a new todo..."
+                      className="h-9 text-sm"
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && newTodoText.trim()) {
+                          createTodo(newTodoText.trim(), null, newTodoTagIds);
+                          setNewTodoTagIds([]);
+                        }
+                      }}
+                    />
+                    <Button
+                      size="sm"
+                      className="h-9"
+                      onClick={() => {
+                        if (newTodoText.trim()) {
+                          createTodo(newTodoText.trim(), null, newTodoTagIds);
+                          setNewTodoTagIds([]);
+                        }
+                      }}
+                      disabled={!newTodoText.trim()}
+                    >
+                      <Plus size={14} className="mr-1" /> Add
+                    </Button>
+                  </div>
+                  {projectTags.length > 0 && (
+                    <div className="flex items-center gap-1 flex-wrap mt-2">
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase mr-1">Project:</span>
+                      {projectTags.map(tag => {
+                        const isSelected = newTodoTagIds.includes(tag.id);
+                        return (
+                          <button
+                            key={tag.id}
+                            onClick={() => {
+                              setNewTodoTagIds(prev =>
+                                isSelected ? prev.filter(id => id !== tag.id) : [...prev, tag.id]
+                              );
+                            }}
+                            className={`text-[11px] px-1.5 py-0.5 rounded-full border transition-colors ${
+                              isSelected
+                                ? 'border-transparent font-medium'
+                                : 'border-dashed border-muted-foreground/30 text-muted-foreground hover:border-primary/50'
+                            }`}
+                            style={isSelected ? { backgroundColor: tag.color + '20', color: tag.color, borderColor: tag.color + '40' } : {}}
+                          >
+                            {tag.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {todoTree.length === 0 && (
