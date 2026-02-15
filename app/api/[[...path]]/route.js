@@ -399,7 +399,7 @@ async function getTodos(searchParams) {
 
 async function createTodo(body) {
   const sql = getDb();
-  const { text, note_id, parent_todo_id, owner_id, position } = body;
+  const { text, note_id, parent_todo_id, owner_id, position, tag_ids } = body;
   const ownerId = owner_id || DEFAULT_OWNER;
   const id = uuidv4();
 
@@ -409,15 +409,25 @@ async function createTodo(body) {
     RETURNING *
   `;
 
+  // Assign project tags if provided
+  if (tag_ids && tag_ids.length > 0) {
+    for (const tagId of tag_ids) {
+      await sql`INSERT INTO todo_tags (todo_id, tag_id) VALUES (${id}, ${tagId}) ON CONFLICT DO NOTHING`;
+    }
+  }
+
   if (note_id) {
     const [note] = await sql`SELECT * FROM notes WHERE id = ${note_id}`;
     if (note) {
-      const updatedContent = insertTaskItemIntoContent(note.content || { type: 'doc', content: [] }, id, text || '');
+      const parsedNote = parseNote(note);
+      const updatedContent = insertTaskItemIntoContent(parsedNote.content || { type: 'doc', content: [] }, id, text || '');
       await sql`UPDATE notes SET content = ${JSON.stringify(updatedContent)}::jsonb, updated_at = NOW() WHERE id = ${note_id}`;
     }
   }
 
-  return NextResponse.json(todo, { status: 201 });
+  // Return with tags
+  const todoTags = await sql`SELECT t.* FROM todo_tags tt JOIN tags t ON tt.tag_id = t.id WHERE tt.todo_id = ${id}`;
+  return NextResponse.json({ ...todo, tags: todoTags }, { status: 201 });
 }
 
 async function updateTodo(id, body) {
