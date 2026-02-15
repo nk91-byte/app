@@ -191,13 +191,13 @@ export default function App() {
   };
 
   // ===== TODO OPERATIONS =====
-  const createTodo = async (text, noteId) => {
+  const createTodo = async (text, noteId, tagIds) => {
     try {
       const todo = await api('todos', {
         method: 'POST',
-        body: JSON.stringify({ text, note_id: noteId || null }),
+        body: JSON.stringify({ text, note_id: noteId || null, tag_ids: tagIds || [] }),
       });
-      setTodos(prev => [{ ...todo, tags: [] }, ...prev]);
+      setTodos(prev => [todo, ...prev]);
       setNewTodoText('');
       if (noteId) loadNotes();
     } catch (e) { console.error('Create todo error:', e); }
