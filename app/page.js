@@ -374,7 +374,13 @@ export default function App() {
           )}
 
           {todo.note_id && (
-            <FileText size={12} className="text-muted-foreground flex-shrink-0" title="Linked to a note" />
+            <button
+              onClick={(e) => { e.stopPropagation(); navigateToNote(todo.note_id); }}
+              className="p-0.5 hover:bg-primary/10 rounded transition-colors flex-shrink-0"
+              title="Go to linked note"
+            >
+              <FileText size={12} className="text-primary/70 hover:text-primary" />
+            </button>
           )}
 
           {todo.tags?.map(tag => (
