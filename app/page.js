@@ -555,7 +555,7 @@ export default function App() {
           )}
         </nav>
 
-        {/* Projects / Tags */}
+        {/* Tags Section */}
         {sidebarCollapsed ? (
           <div className="p-2 border-t">
             <Tooltip>
@@ -568,10 +568,10 @@ export default function App() {
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right" className="font-medium">
-                Projects
+                {view === 'notebook' ? 'Contexts' : 'Projects'}
               </TooltipContent>
             </Tooltip>
-            {tags.map(tag => (
+            {(view === 'notebook' ? sourceTags : projectTags).map(tag => (
               <Tooltip key={tag.id}>
                 <TooltipTrigger asChild>
                   <button
@@ -590,31 +590,131 @@ export default function App() {
             ))}
           </div>
         ) : (
-          <div className="p-3 border-t">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Projects</span>
-              <button
-                onClick={() => setShowTagForm(!showTagForm)}
-                className="p-0.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
-              >
-                <Plus size={14} />
-              </button>
+          <div className="p-3 border-t flex-1 overflow-y-auto">
+            {/* Context tags (for Notebook view) */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  Contexts
+                </span>
+                <button
+                  onClick={() => { setShowTagForm(true); setNewTagType('source'); }}
+                  className="p-0.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
+                  title="Add context tag"
+                >
+                  <Plus size={12} />
+                </button>
+              </div>
+              {view === 'notebook' && (
+                <button
+                  onClick={() => setSelectedTagId('')}
+                  className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
+                    !selectedTagId ? 'bg-sidebar-accent font-medium' : 'hover:bg-sidebar-accent/50'
+                  }`}
+                >
+                  All
+                </button>
+              )}
+              {sourceTags.map(tag => (
+                <div key={tag.id} className="flex items-center group">
+                  <button
+                    onClick={() => { if (view !== 'notebook') { setView('notebook'); setSearchQuery(''); } setSelectedTagId(selectedTagId === tag.id ? '' : tag.id); }}
+                    className={`flex-1 text-left px-2 py-1 rounded text-xs flex items-center gap-2 transition-colors ${
+                      selectedTagId === tag.id ? 'bg-sidebar-accent font-medium' : 'hover:bg-sidebar-accent/50'
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color || '#888' }} />
+                    <span className="truncate">{tag.name}</span>
+                  </button>
+                  <button
+                    onClick={() => deleteTag(tag.id, 'source')}
+                    className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                  >
+                    <X size={10} />
+                  </button>
+                </div>
+              ))}
+              {sourceTags.length === 0 && <p className="text-[10px] text-muted-foreground px-2 py-1 italic">No context tags yet</p>}
             </div>
+
+            <Separator className="my-2" />
+
+            {/* Project tags (for Todo view) */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  Projects
+                </span>
+                <button
+                  onClick={() => { setShowTagForm(true); setNewTagType('project'); }}
+                  className="p-0.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
+                  title="Add project tag"
+                >
+                  <Plus size={12} />
+                </button>
+              </div>
+              {view === 'todos' && (
+                <button
+                  onClick={() => setSelectedTagId('')}
+                  className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
+                    !selectedTagId ? 'bg-sidebar-accent font-medium' : 'hover:bg-sidebar-accent/50'
+                  }`}
+                >
+                  All
+                </button>
+              )}
+              {projectTags.map(tag => (
+                <div key={tag.id} className="flex items-center group">
+                  <button
+                    onClick={() => { if (view !== 'todos') { setView('todos'); setSearchQuery(''); } setSelectedTagId(selectedTagId === tag.id ? '' : tag.id); }}
+                    className={`flex-1 text-left px-2 py-1 rounded text-xs flex items-center gap-2 transition-colors ${
+                      selectedTagId === tag.id ? 'bg-sidebar-accent font-medium' : 'hover:bg-sidebar-accent/50'
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color || '#888' }} />
+                    <span className="truncate">{tag.name}</span>
+                  </button>
+                  <button
+                    onClick={() => deleteTag(tag.id, 'project')}
+                    className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                  >
+                    <X size={10} />
+                  </button>
+                </div>
+              ))}
+              {projectTags.length === 0 && <p className="text-[10px] text-muted-foreground px-2 py-1 italic">No project tags yet</p>}
+            </div>
+
+            {/* Tag creation form */}
             {showTagForm && (
-              <div className="mb-2 space-y-2">
+              <div className="mt-3 p-2 border rounded-md bg-muted/30 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${
+                    newTagType === 'source' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                  }`}>
+                    {newTagType === 'source' ? 'Context' : 'Project'}
+                  </span>
+                  <button
+                    onClick={() => setNewTagType(newTagType === 'source' ? 'project' : 'source')}
+                    className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                  >
+                    Switch to {newTagType === 'source' ? 'project' : 'context'}
+                  </button>
+                </div>
                 <Input
                   value={newTagName}
                   onChange={e => setNewTagName(e.target.value)}
-                  placeholder="Project name"
+                  placeholder={newTagType === 'source' ? 'e.g. 1:1, Pipeline Meeting...' : 'e.g. Project A, Hiring...'}
                   className="h-7 text-xs"
                   onKeyDown={e => e.key === 'Enter' && createTag()}
+                  autoFocus
                 />
                 <div className="flex gap-1 flex-wrap">
                   {TAG_COLORS.map(c => (
                     <button
                       key={c.value}
                       onClick={() => setNewTagColor(c.value)}
-                      className={`w-5 h-5 rounded-full border-2 ${newTagColor === c.value ? 'border-foreground' : 'border-transparent'}`}
+                      className={`w-4 h-4 rounded-full border-2 ${newTagColor === c.value ? 'border-foreground' : 'border-transparent'}`}
                       style={{ backgroundColor: c.value }}
                     />
                   ))}
@@ -625,35 +725,6 @@ export default function App() {
                 </div>
               </div>
             )}
-            <div className="space-y-0.5">
-              <button
-                onClick={() => setSelectedTagId('')}
-                className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
-                  !selectedTagId ? 'bg-sidebar-accent font-medium' : 'hover:bg-sidebar-accent/50'
-                }`}
-              >
-                All
-              </button>
-              {tags.map(tag => (
-                <div key={tag.id} className="flex items-center group">
-                  <button
-                    onClick={() => setSelectedTagId(selectedTagId === tag.id ? '' : tag.id)}
-                    className={`flex-1 text-left px-2 py-1 rounded text-xs flex items-center gap-2 transition-colors ${
-                      selectedTagId === tag.id ? 'bg-sidebar-accent font-medium' : 'hover:bg-sidebar-accent/50'
-                    }`}
-                  >
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color || '#888' }} />
-                    {tag.name}
-                  </button>
-                  <button
-                    onClick={() => deleteTag(tag.id)}
-                    className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
-                  >
-                    <X size={10} />
-                  </button>
-                </div>
-              ))}
-            </div>
           </div>
         )}
       </div>
