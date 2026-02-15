@@ -246,18 +246,26 @@ export default function App() {
     try {
       const tag = await api('tags', {
         method: 'POST',
-        body: JSON.stringify({ name: newTagName.trim(), type: 'project', color: newTagColor }),
+        body: JSON.stringify({ name: newTagName.trim(), type: newTagType, color: newTagColor }),
       });
-      setTags(prev => [...prev, tag]);
+      if (newTagType === 'source') {
+        setSourceTags(prev => [...prev, tag]);
+      } else {
+        setProjectTags(prev => [...prev, tag]);
+      }
       setNewTagName('');
       setShowTagForm(false);
     } catch (e) { console.error('Create tag error:', e); }
   };
 
-  const deleteTag = async (tagId) => {
+  const deleteTag = async (tagId, tagType) => {
     try {
       await api(`tags/${tagId}`, { method: 'DELETE' });
-      setTags(prev => prev.filter(t => t.id !== tagId));
+      if (tagType === 'source') {
+        setSourceTags(prev => prev.filter(t => t.id !== tagId));
+      } else {
+        setProjectTags(prev => prev.filter(t => t.id !== tagId));
+      }
       if (selectedTagId === tagId) setSelectedTagId('');
     } catch (e) { console.error('Delete tag error:', e); }
   };
@@ -274,6 +282,17 @@ export default function App() {
       const updated = await api(`notes/${noteId}`);
       setEditingNote(updated);
     }
+  };
+
+  const toggleTodoTag = async (todoId, tagId) => {
+    const todo = todos.find(t => t.id === todoId);
+    const hasTag = todo?.tags?.some(t => t.id === tagId);
+    if (hasTag) {
+      await api(`todo-tags/${todoId}/${tagId}`, { method: 'DELETE' });
+    } else {
+      await api('todo-tags', { method: 'POST', body: JSON.stringify({ todo_id: todoId, tag_id: tagId }) });
+    }
+    loadTodos();
   };
 
   // ===== NAVIGATE TO NOTE FROM TODO =====
