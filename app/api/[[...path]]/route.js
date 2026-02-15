@@ -533,7 +533,13 @@ async function archiveTodo(id) {
 async function getTags(searchParams) {
   const sql = getDb();
   const ownerId = searchParams.get('owner_id') || DEFAULT_OWNER;
-  const tags = await sql`SELECT * FROM tags WHERE owner_id = ${ownerId} ORDER BY name`;
+  const type = searchParams.get('type') || '';
+  let tags;
+  if (type) {
+    tags = await sql`SELECT * FROM tags WHERE owner_id = ${ownerId} AND type = ${type} ORDER BY name`;
+  } else {
+    tags = await sql`SELECT * FROM tags WHERE owner_id = ${ownerId} ORDER BY type, name`;
+  }
   return NextResponse.json(tags);
 }
 
