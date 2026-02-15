@@ -266,6 +266,19 @@ export default function App() {
     }
   };
 
+  // ===== NAVIGATE TO NOTE FROM TODO =====
+  const navigateToNote = async (noteId) => {
+    try {
+      setView('notebook');
+      setSearchQuery('');
+      setSelectedTagId('');
+      const noteData = await api(`notes/${noteId}`);
+      setSelectedNoteId(noteId);
+      setEditingNote(noteData);
+      await loadNotes();
+    } catch (e) { console.error('Navigate to note error:', e); }
+  };
+
   // ===== BUILD TODO TREE =====
   function buildTodoTree(flatTodos) {
     const map = new Map();
