@@ -71,6 +71,7 @@ export default function App() {
   const [expandedTodos, setExpandedTodos] = useState(new Set());
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [todoTagPickerId, setTodoTagPickerId] = useState(null);
+  const [newTodoTagIds, setNewTodoTagIds] = useState([]);
   const saveTimeoutRef = useRef(null);
 
   // ===== API HELPERS =====
