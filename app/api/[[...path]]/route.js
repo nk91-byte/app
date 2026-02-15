@@ -480,7 +480,8 @@ async function updateTodo(id, body) {
     }
   }
 
-  return NextResponse.json(todo);
+  const todoTags = await sql`SELECT t.* FROM todo_tags tt JOIN tags t ON tt.tag_id = t.id WHERE tt.todo_id = ${id}`;
+  return NextResponse.json({ ...todo, tags: todoTags });
 }
 
 async function deleteTodo(id) {
