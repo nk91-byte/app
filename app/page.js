@@ -429,41 +429,124 @@ export default function App() {
   }
 
   return (
+    <TooltipProvider delayDuration={150}>
     <div className="min-h-screen flex bg-background">
       {/* ===== SIDEBAR ===== */}
-      <div className={`${sidebarCollapsed ? 'w-16' : 'w-60'} border-r bg-sidebar flex flex-col transition-all duration-200`}>
-        <div className="p-4 flex items-center gap-2">
-          {!sidebarCollapsed && (
-            <div className="flex items-center gap-2">
-              <StickyNote size={20} className="text-primary" />
-              <h1 className="font-semibold text-sm">NoteFlow</h1>
+      <div className={`${sidebarCollapsed ? 'w-[60px]' : 'w-60'} border-r bg-sidebar flex flex-col transition-all duration-300 ease-in-out flex-shrink-0`}>
+        {/* Sidebar Header */}
+        <div className={`p-3 flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+          {!sidebarCollapsed ? (
+            <div className="flex items-center gap-2 min-w-0">
+              <StickyNote size={20} className="text-primary flex-shrink-0" />
+              <h1 className="font-semibold text-sm truncate">NoteFlow</h1>
             </div>
+          ) : (
+            <StickyNote size={20} className="text-primary" />
           )}
-          {sidebarCollapsed && <StickyNote size={20} className="text-primary mx-auto" />}
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className={`p-1 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors ${sidebarCollapsed ? 'absolute left-[60px] top-3 z-10 bg-background border shadow-sm' : ''}`}
+          >
+            {sidebarCollapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
+          </button>
         </div>
+
         <Separator />
+
+        {/* Navigation */}
         <nav className="flex-1 p-2 space-y-1">
-          <button
-            onClick={() => { setView('notebook'); setSearchQuery(''); setSelectedTagId(''); }}
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-              view === 'notebook' ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
-            }`}
-          >
-            <BookOpen size={16} />
-            {!sidebarCollapsed && 'Notebook'}
-          </button>
-          <button
-            onClick={() => { setView('todos'); setSearchQuery(''); setSelectedTagId(''); }}
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-              view === 'todos' ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
-            }`}
-          >
-            <CheckSquare size={16} />
-            {!sidebarCollapsed && 'To-Do List'}
-          </button>
+          {sidebarCollapsed ? (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => { setView('notebook'); setSearchQuery(''); setSelectedTagId(''); }}
+                    className={`w-full flex items-center justify-center p-2 rounded-md transition-colors ${
+                      view === 'notebook' ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
+                    }`}
+                  >
+                    <BookOpen size={18} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="font-medium">
+                  Notebook
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => { setView('todos'); setSearchQuery(''); setSelectedTagId(''); }}
+                    className={`w-full flex items-center justify-center p-2 rounded-md transition-colors ${
+                      view === 'todos' ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
+                    }`}
+                  >
+                    <CheckSquare size={18} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="font-medium">
+                  To-Do List
+                </TooltipContent>
+              </Tooltip>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => { setView('notebook'); setSearchQuery(''); setSelectedTagId(''); }}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+                  view === 'notebook' ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
+                }`}
+              >
+                <BookOpen size={18} />
+                <span>Notebook</span>
+              </button>
+              <button
+                onClick={() => { setView('todos'); setSearchQuery(''); setSelectedTagId(''); }}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+                  view === 'todos' ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
+                }`}
+              >
+                <CheckSquare size={18} />
+                <span>To-Do List</span>
+              </button>
+            </>
+          )}
         </nav>
 
-        {!sidebarCollapsed && (
+        {/* Projects / Tags */}
+        {sidebarCollapsed ? (
+          <div className="p-2 border-t">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => { setSidebarCollapsed(false); }}
+                  className="w-full flex items-center justify-center p-2 rounded-md text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors"
+                >
+                  <Tag size={18} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="font-medium">
+                Projects
+              </TooltipContent>
+            </Tooltip>
+            {tags.map(tag => (
+              <Tooltip key={tag.id}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => { setSelectedTagId(selectedTagId === tag.id ? '' : tag.id); }}
+                    className={`w-full flex items-center justify-center p-2 rounded-md transition-colors ${
+                      selectedTagId === tag.id ? 'bg-sidebar-accent' : 'hover:bg-sidebar-accent/50'
+                    }`}
+                  >
+                    <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color || '#888' }} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="font-medium">
+                  {tag.name}
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+        ) : (
           <div className="p-3 border-t">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Projects</span>
