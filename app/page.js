@@ -92,7 +92,7 @@ export default function App() {
       try {
         await api('db/setup', { method: 'POST' });
         setDbReady(true);
-        await Promise.all([loadNotes(), loadTodos(), loadTags()]);
+        await Promise.all([loadNotes(), loadTodos(), loadSourceTags(), loadProjectTags()]);
       } catch (e) {
         console.error('Init error:', e);
       } finally {
@@ -125,11 +125,18 @@ export default function App() {
     } catch (e) { console.error('Load todos error:', e); }
   }, [api, searchQuery, todoFilter, selectedTagId, showArchived]);
 
-  const loadTags = useCallback(async () => {
+  const loadSourceTags = useCallback(async () => {
     try {
-      const data = await api('tags');
-      setTags(data);
-    } catch (e) { console.error('Load tags error:', e); }
+      const data = await api('tags?type=source');
+      setSourceTags(data);
+    } catch (e) { console.error('Load source tags error:', e); }
+  }, [api]);
+
+  const loadProjectTags = useCallback(async () => {
+    try {
+      const data = await api('tags?type=project');
+      setProjectTags(data);
+    } catch (e) { console.error('Load project tags error:', e); }
   }, [api]);
 
   useEffect(() => {
