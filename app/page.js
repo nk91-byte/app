@@ -845,5 +845,6 @@ export default function App() {
         </ScrollArea>
       </div>
     </div>
+    </TooltipProvider>
   );
 }
