@@ -415,12 +415,24 @@ export default function App() {
           {todo.tags?.map(tag => (
             <span
               key={tag.id}
-              className="text-xs px-1.5 py-0.5 rounded-full flex-shrink-0"
+              className="text-xs px-1.5 py-0.5 rounded-full flex-shrink-0 cursor-pointer hover:opacity-70"
               style={{ backgroundColor: tag.color + '20', color: tag.color }}
+              onClick={() => toggleTodoTag(todo.id, tag.id)}
+              title={`Remove ${tag.name}`}
             >
               {tag.name}
             </span>
           ))}
+
+          <button
+            onClick={() => setTodoTagPickerId(todoTagPickerId === todo.id ? null : todo.id)}
+            className={`p-0.5 rounded transition-colors flex-shrink-0 ${
+              todoTagPickerId === todo.id ? 'bg-primary/10 text-primary' : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted'
+            }`}
+            title="Assign project tag"
+          >
+            <Tag size={11} />
+          </button>
 
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
@@ -446,6 +458,32 @@ export default function App() {
             </button>
           </div>
         </div>
+        {/* Inline project tag picker */}
+        {todoTagPickerId === todo.id && (
+          <div className="flex items-center gap-1 flex-wrap py-1 px-3" style={{ paddingLeft: `${depth * 24 + 44}px` }}>
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase mr-1">Project:</span>
+            {projectTags.map(tag => {
+              const hasTag = todo.tags?.some(t => t.id === tag.id);
+              return (
+                <button
+                  key={tag.id}
+                  onClick={() => toggleTodoTag(todo.id, tag.id)}
+                  className={`text-[11px] px-1.5 py-0.5 rounded-full border transition-colors ${
+                    hasTag
+                      ? 'border-transparent font-medium'
+                      : 'border-dashed border-muted-foreground/30 text-muted-foreground hover:border-primary/50'
+                  }`}
+                  style={hasTag ? { backgroundColor: tag.color + '20', color: tag.color, borderColor: tag.color + '40' } : {}}
+                >
+                  {tag.name}
+                </button>
+              );
+            })}
+            {projectTags.length === 0 && (
+              <span className="text-[10px] text-muted-foreground italic">No project tags — add from sidebar</span>
+            )}
+          </div>
+        )}
         {hasChildren && isExpanded && (
           <div>
             {todo.children.map(child => (
