@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   BookOpen, CheckSquare, Plus, Search, X, Tag, ChevronDown, ChevronRight,
   Trash2, Archive, ArchiveRestore, Edit3, Save, FileText, Clock, MoreHorizontal,
-  Loader2, Palette, StickyNote
+  Loader2, Palette, StickyNote, PanelLeftClose, PanelLeft
 } from 'lucide-react';
 
 const NoteEditor = dynamic(() => import('@/components/NoteEditor'), {
