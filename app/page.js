@@ -51,7 +51,8 @@ export default function App() {
   const [view, setView] = useState('notebook');
   const [notes, setNotes] = useState([]);
   const [todos, setTodos] = useState([]);
-  const [tags, setTags] = useState([]);
+  const [sourceTags, setSourceTags] = useState([]);
+  const [projectTags, setProjectTags] = useState([]);
   const [selectedNoteId, setSelectedNoteId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTagId, setSelectedTagId] = useState('');
@@ -64,10 +65,12 @@ export default function App() {
   const [showTagForm, setShowTagForm] = useState(false);
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState(TAG_COLORS[4].value);
+  const [newTagType, setNewTagType] = useState('source');
   const [editingTodoId, setEditingTodoId] = useState(null);
   const [editingTodoText, setEditingTodoText] = useState('');
   const [expandedTodos, setExpandedTodos] = useState(new Set());
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [todoTagPickerId, setTodoTagPickerId] = useState(null);
   const saveTimeoutRef = useRef(null);
 
   // ===== API HELPERS =====
