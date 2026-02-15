@@ -880,8 +880,8 @@ export default function App() {
                           />
                           <div className="mt-3 flex items-center justify-between">
                             <div className="flex items-center gap-1 flex-wrap">
-                              <Tag size={12} className="text-muted-foreground mr-1" />
-                              {tags.map(tag => {
+                              <span className="text-[10px] font-semibold text-muted-foreground uppercase mr-1">Context</span>
+                              {sourceTags.map(tag => {
                                 const hasTag = editingNote.tags?.some(t => t.id === tag.id);
                                 return (
                                   <button
@@ -898,6 +898,9 @@ export default function App() {
                                   </button>
                                 );
                               })}
+                              {sourceTags.length === 0 && (
+                                <span className="text-xs text-muted-foreground italic">No context tags — add from sidebar</span>
+                              )}
                             </div>
                             <Button
                               size="sm"
