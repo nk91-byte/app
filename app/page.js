@@ -443,13 +443,27 @@ export default function App() {
           ) : (
             <StickyNote size={20} className="text-primary" />
           )}
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className={`p-1 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors ${sidebarCollapsed ? 'absolute left-[60px] top-3 z-10 bg-background border shadow-sm' : ''}`}
-          >
-            {sidebarCollapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
-          </button>
+          {!sidebarCollapsed && (
+            <button
+              onClick={() => setSidebarCollapsed(true)}
+              className="p-1.5 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
+              title="Collapse sidebar"
+            >
+              <PanelLeftClose size={16} />
+            </button>
+          )}
         </div>
+        {sidebarCollapsed && (
+          <div className="flex justify-center pb-1">
+            <button
+              onClick={() => setSidebarCollapsed(false)}
+              className="p-1.5 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
+              title="Expand sidebar"
+            >
+              <PanelLeft size={16} />
+            </button>
+          </div>
+        )}
 
         <Separator />
 
