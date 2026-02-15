@@ -236,6 +236,6 @@ test_plan:
 
 agent_communication:
   - agent: "main"
-    message: "Full MVP implemented. Backend uses postgres.js connecting to Supabase Postgres. API routes handle notes, todos, tags CRUD with bidirectional sync between note content and todo table. Test all endpoints. DATABASE_URL is in .env. Base URL is http://localhost:3000/api. The db schema is already set up."
+    message: "Updated tagging system to separate NOTE context tags (type='source') from TODO project tags (type='project'). Backend changes: migration of existing tags to type='source', GET /api/tags supports ?type= filter, createTodo supports tag_ids parameter. Frontend: sidebar shows CONTEXTS and PROJECTS sections separately, note editor only shows source tags, todo view only shows project tags with inline tag picker. DATABASE_URL is in .env. Base URL is http://localhost:3000/api. Test all endpoints including tags?type=source, tags?type=project, create todo with tag_ids, and tag assignment."
   - agent: "testing"
     message: "BACKEND TESTING COMPLETE - All critical functionality verified working: 1) Notes CRUD (100% pass), 2) Todos CRUD with filtering/archiving (100% pass), 3) Tags CRUD and assignments (100% pass), 4) CRITICAL: Inline todo sync (100% pass - task items in notes create todo rows), 5) CRITICAL: Bidirectional sync (100% pass - todo updates sync back to note content), 6) Parent-child todo cascade (100% pass). Minor: Some error handling edge cases detected but don't affect core functionality. Ready for production use."
