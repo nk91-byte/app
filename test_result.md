@@ -176,6 +176,9 @@ backend:
       - working: true
         agent: "testing"
         comment: "COMPREHENSIVE TEST PASSED - Tags CRUD working: Create tag (201), List tags (200), Tag assignments to notes/todos verified, tag removal working, filtering by tags functional."
+      - working: true
+        agent: "testing"
+        comment: "UPDATED TAG SYSTEM TEST PASSED - New tag type system fully functional: 1) Tag type filtering ✅ (GET /api/tags?type=source, ?type=project, no filter), 2) Todo creation with tag_ids parameter ✅, 3) Tag assignments still work for both source/project types ✅, 4) All existing CRUD operations still work ✅, 5) Critical inline todo sync still works ✅. Two-type system (source for notes, project for todos) working perfectly."
 
   - task: "Todo toggle and cascade (PATCH /api/todos/:id/toggle)"
     implemented: true
