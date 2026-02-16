@@ -117,17 +117,30 @@ export default function App() {
     } catch (e) { console.error('Load notes error:', e); }
   }, [api, searchQuery, selectedTagId]);
 
-  const loadTodos = useCallback(async (search, status, tag, archived) => {
+  const loadTodos = useCallback(async () => {
     try {
       const params = new URLSearchParams();
-      if (search || searchQuery) params.set('search', search || searchQuery);
-      params.set('status', status || todoFilter);
-      if (tag || selectedTagId) params.set('tag', tag || selectedTagId);
-      params.set('show_archived', String(archived !== undefined ? archived : showArchived));
+      if (searchQuery) params.set('search', searchQuery);
+      params.set('status', todoFilter);
+      if (todoProjectFilter) params.set('tag', todoProjectFilter);
+      // Date filter
+      const now = new Date();
+      if (todoDateFilter === 'today') {
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        params.set('date_from', start.toISOString());
+      } else if (todoDateFilter === '7days') {
+        const start = new Date(now);
+        start.setDate(start.getDate() - 7);
+        params.set('date_from', start.toISOString());
+      } else if (todoDateFilter === '30days') {
+        const start = new Date(now);
+        start.setDate(start.getDate() - 30);
+        params.set('date_from', start.toISOString());
+      }
       const data = await api(`todos?${params}`);
       setTodos(data);
     } catch (e) { console.error('Load todos error:', e); }
-  }, [api, searchQuery, todoFilter, selectedTagId, showArchived]);
+  }, [api, searchQuery, todoFilter, todoProjectFilter, todoDateFilter]);
 
   const loadSourceTags = useCallback(async () => {
     try {
