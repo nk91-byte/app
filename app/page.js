@@ -58,6 +58,9 @@ export default function App() {
   const [selectedTagId, setSelectedTagId] = useState('');
   const [todoFilter, setTodoFilter] = useState('all');
   const [showArchived, setShowArchived] = useState(false);
+  const [todoProjectFilter, setTodoProjectFilter] = useState('');
+  const [todoDateFilter, setTodoDateFilter] = useState('all');
+  const [todoGroupBy, setTodoGroupBy] = useState('none');
   const [loading, setLoading] = useState(true);
   const [dbReady, setDbReady] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
