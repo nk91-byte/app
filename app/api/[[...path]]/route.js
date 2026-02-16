@@ -343,10 +343,17 @@ async function deleteNote(id) {
 async function getTodos(searchParams) {
   const sql = getDb();
   const search = searchParams.get('search') || '';
-  const status = searchParams.get('status') || 'open';
+  const status = searchParams.get('status') || 'all';
   const tagId = searchParams.get('tag') || '';
-  const showArchived = searchParams.get('show_archived') === 'true';
+  const dateFrom = searchParams.get('date_from') || '';
+  const dateTo = searchParams.get('date_to') || '';
   const ownerId = searchParams.get('owner_id') || DEFAULT_OWNER;
+
+  // Build status condition
+  // 'open' = not done, not archived
+  // 'done' = done, not archived
+  // 'archived' = archived (regardless of done)
+  // 'all' = everything including archived
 
   let todos;
   if (tagId) {
@@ -355,20 +362,24 @@ async function getTodos(searchParams) {
       JOIN todo_tags tt ON t.id = tt.todo_id
       WHERE t.owner_id = ${ownerId}
       AND tt.tag_id = ${tagId}
-      ${!showArchived ? sql`AND t.archived_at IS NULL` : sql``}
-      ${status === 'open' ? sql`AND t.is_done = FALSE` : sql``}
-      ${status === 'done' ? sql`AND t.is_done = TRUE` : sql``}
+      ${status === 'open' ? sql`AND t.is_done = FALSE AND t.archived_at IS NULL` : sql``}
+      ${status === 'done' ? sql`AND t.is_done = TRUE AND t.archived_at IS NULL` : sql``}
+      ${status === 'archived' ? sql`AND t.archived_at IS NOT NULL` : sql``}
       ${search ? sql`AND t.text ILIKE ${'%' + search + '%'}` : sql``}
+      ${dateFrom ? sql`AND t.created_at >= ${dateFrom}::timestamptz` : sql``}
+      ${dateTo ? sql`AND t.created_at <= ${dateTo}::timestamptz` : sql``}
       ORDER BY t.position ASC NULLS LAST, t.created_at DESC
     `;
   } else {
     todos = await sql`
       SELECT * FROM todos
       WHERE owner_id = ${ownerId}
-      ${!showArchived ? sql`AND archived_at IS NULL` : sql``}
-      ${status === 'open' ? sql`AND is_done = FALSE` : sql``}
-      ${status === 'done' ? sql`AND is_done = TRUE` : sql``}
+      ${status === 'open' ? sql`AND is_done = FALSE AND archived_at IS NULL` : sql``}
+      ${status === 'done' ? sql`AND is_done = TRUE AND archived_at IS NULL` : sql``}
+      ${status === 'archived' ? sql`AND archived_at IS NOT NULL` : sql``}
       ${search ? sql`AND text ILIKE ${'%' + search + '%'}` : sql``}
+      ${dateFrom ? sql`AND created_at >= ${dateFrom}::timestamptz` : sql``}
+      ${dateTo ? sql`AND created_at <= ${dateTo}::timestamptz` : sql``}
       ORDER BY position ASC NULLS LAST, created_at DESC
     `;
   }
