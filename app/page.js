@@ -11,7 +11,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import {
   BookOpen, CheckSquare, Plus, Search, X, Tag, ChevronDown, ChevronRight,
   Trash2, Archive, ArchiveRestore, Edit3, Save, FileText, Clock, MoreHorizontal,
-  Loader2, Palette, StickyNote, PanelLeftClose, PanelLeft
+  Loader2, Palette, StickyNote, PanelLeftClose, PanelLeft, Filter, LayoutGrid,
+  Calendar, FolderOpen, CircleDot
 } from 'lucide-react';
 
 const NoteEditor = dynamic(() => import('@/components/NoteEditor'), {
