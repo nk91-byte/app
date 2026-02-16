@@ -1144,6 +1144,27 @@ export default function App() {
                   )}
                 </div>
 
+                {/* Summary Bar */}
+                {todos.length > 0 && (
+                  <div className="flex items-center gap-3 mb-4 text-xs text-muted-foreground">
+                    <span>{todos.length} todo{todos.length !== 1 ? 's' : ''}</span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                      {todos.filter(t => !t.is_done && !t.archived_at).length} open
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                      {todos.filter(t => t.is_done && !t.archived_at).length} done
+                    </span>
+                    {todos.filter(t => t.archived_at).length > 0 && (
+                      <span className="flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                        {todos.filter(t => t.archived_at).length} archived
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 {todoTree.length === 0 && (
                   <div className="text-center py-16 text-muted-foreground">
                     <CheckSquare className="mx-auto mb-3" size={40} strokeWidth={1} />
@@ -1152,11 +1173,33 @@ export default function App() {
                   </div>
                 )}
 
-                <div className="space-y-0.5">
-                  {todoTree.map(todo => (
-                    <TodoItemRow key={todo.id} todo={todo} />
-                  ))}
-                </div>
+                {/* Grouped Todo List */}
+                {(() => {
+                  const groups = groupTodos(todoTree, todoGroupBy);
+                  return (
+                    <div className="space-y-5">
+                      {groups.map(group => (
+                        <div key={group.key}>
+                          {group.label && (
+                            <div className="flex items-center gap-2 mb-2 sticky top-0 bg-background/95 backdrop-blur-sm py-1.5 z-10">
+                              {group.color && (
+                                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
+                              )}
+                              <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide">{group.label}</h3>
+                              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full font-medium">{group.todos.length}</span>
+                              <div className="flex-1 border-b border-border/50" />
+                            </div>
+                          )}
+                          <div className="space-y-0.5">
+                            {group.todos.map(todo => (
+                              <TodoItemRow key={todo.id} todo={todo} />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>
