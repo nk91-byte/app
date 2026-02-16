@@ -161,7 +161,7 @@ export default function App() {
       if (view === 'notebook') loadNotes();
       else loadTodos();
     }
-  }, [view, searchQuery, selectedTagId, todoFilter, showArchived, dbReady]);
+  }, [view, searchQuery, selectedTagId, todoFilter, todoProjectFilter, todoDateFilter, dbReady]);
 
   // ===== NOTE OPERATIONS =====
   const createNote = async () => {
