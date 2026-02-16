@@ -58,7 +58,6 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTagId, setSelectedTagId] = useState('');
   const [todoFilter, setTodoFilter] = useState('all');
-  const [showArchived, setShowArchived] = useState(false);
   const [todoProjectFilter, setTodoProjectFilter] = useState('');
   const [todoDateFilter, setTodoDateFilter] = useState('all');
   const [todoGroupBy, setTodoGroupBy] = useState('none');
