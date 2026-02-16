@@ -863,27 +863,83 @@ export default function App() {
           </div>
 
           {view === 'todos' && (
-            <div className="flex items-center gap-2">
-              {['all', 'open', 'done'].map(f => (
-                <button
-                  key={f}
-                  onClick={() => setTodoFilter(f)}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                    todoFilter === f ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'
-                  }`}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {/* Status filter */}
+              <div className="flex items-center bg-muted rounded-md p-0.5">
+                {[
+                  { value: 'all', label: 'All' },
+                  { value: 'open', label: 'Open' },
+                  { value: 'done', label: 'Done' },
+                  { value: 'archived', label: 'Archived' },
+                ].map(f => (
+                  <button
+                    key={f.value}
+                    onClick={() => setTodoFilter(f.value)}
+                    className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                      todoFilter === f.value ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Project filter */}
+              <div className="relative">
+                <select
+                  value={todoProjectFilter}
+                  onChange={e => setTodoProjectFilter(e.target.value)}
+                  className="h-7 pl-2 pr-6 rounded-md border text-xs bg-background appearance-none cursor-pointer hover:border-primary/50 focus:outline-none focus:ring-1 focus:ring-ring"
                 >
-                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                  <option value="">All Projects</option>
+                  {projectTags.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+                <FolderOpen size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              </div>
+
+              {/* Date filter */}
+              <div className="relative">
+                <select
+                  value={todoDateFilter}
+                  onChange={e => setTodoDateFilter(e.target.value)}
+                  className="h-7 pl-2 pr-6 rounded-md border text-xs bg-background appearance-none cursor-pointer hover:border-primary/50 focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  <option value="all">Any Date</option>
+                  <option value="today">Today</option>
+                  <option value="7days">Last 7 Days</option>
+                  <option value="30days">Last 30 Days</option>
+                </select>
+                <Calendar size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              </div>
+
+              <div className="w-px h-5 bg-border mx-0.5" />
+
+              {/* Group by */}
+              <div className="relative">
+                <select
+                  value={todoGroupBy}
+                  onChange={e => setTodoGroupBy(e.target.value)}
+                  className="h-7 pl-2 pr-6 rounded-md border text-xs bg-background appearance-none cursor-pointer hover:border-primary/50 focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  <option value="none">No Grouping</option>
+                  <option value="project">Group by Project</option>
+                  <option value="status">Group by Status</option>
+                  <option value="date">Group by Date</option>
+                </select>
+                <LayoutGrid size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              </div>
+
+              {/* Active filter indicators */}
+              {(todoFilter !== 'all' || todoProjectFilter || todoDateFilter !== 'all') && (
+                <button
+                  onClick={() => { setTodoFilter('all'); setTodoProjectFilter(''); setTodoDateFilter('all'); }}
+                  className="px-2 py-1 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  Clear filters
                 </button>
-              ))}
-              <button
-                onClick={() => setShowArchived(!showArchived)}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                  showArchived ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Archive size={12} className="inline mr-1" />
-                Archived
-              </button>
+              )}
             </div>
           )}
 
