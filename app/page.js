@@ -341,6 +341,61 @@ export default function App() {
     return roots;
   }
 
+  // ===== GROUPING HELPERS =====
+  function getDateGroup(dateStr) {
+    if (!dateStr) return 'Unknown';
+    const d = new Date(dateStr);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+
+    if (d >= today) return 'Today';
+    if (d >= yesterday) return 'Yesterday';
+    if (d >= weekAgo) return 'This Week';
+    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  }
+
+  function getStatusLabel(todo) {
+    if (todo.archived_at) return 'Archived';
+    if (todo.is_done) return 'Done';
+    return 'Open';
+  }
+
+  function groupTodos(todoTree, groupBy) {
+    if (groupBy === 'none') return [{ key: '__all', label: null, todos: todoTree }];
+    const groups = new Map();
+    const ordering = [];
+
+    for (const todo of todoTree) {
+      let key, label, color;
+      if (groupBy === 'project') {
+        const projectTag = todo.tags?.find(t => t.type === 'project');
+        key = projectTag ? projectTag.id : '__untagged';
+        label = projectTag ? projectTag.name : 'Untagged';
+        color = projectTag?.color || null;
+      } else if (groupBy === 'status') {
+        const s = getStatusLabel(todo);
+        key = s.toLowerCase();
+        label = s;
+        color = s === 'Open' ? '#3b82f6' : s === 'Done' ? '#22c55e' : '#9ca3af';
+      } else if (groupBy === 'date') {
+        const g = getDateGroup(todo.created_at);
+        key = g;
+        label = g;
+        color = null;
+      }
+      if (!groups.has(key)) {
+        groups.set(key, { key, label, color, todos: [] });
+        ordering.push(key);
+      }
+      groups.get(key).todos.push(todo);
+    }
+    return ordering.map(k => groups.get(k));
+  }
+
   // ===== RENDER =====
   if (loading) {
     return (
