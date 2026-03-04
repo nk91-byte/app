@@ -1,22 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getDb, SCHEMA_SQL } from '@/lib/db';
+import { createClient } from '@/lib/supabase/server';
 import { v4 as uuidv4 } from 'uuid';
-
-const DEFAULT_OWNER = '00000000-0000-0000-0000-000000000001';
-
-// ===== PARSE HELPERS =====
-function parseJsonField(val) {
-  if (val === null || val === undefined) return null;
-  if (typeof val === 'string') {
-    try { return JSON.parse(val); } catch { return val; }
-  }
-  return val;
-}
-
-function parseNote(note) {
-  if (!note) return note;
-  return { ...note, content: parseJsonField(note.content) };
-}
+import { calculateNextDueDate } from '@/lib/recurrence';
 
 // ===== HELPER FUNCTIONS =====
 
@@ -48,6 +33,8 @@ function extractTaskItems(node, parentItemIndex = null, items = []) {
       checked: node.attrs?.checked || false,
       text: extractTextFromTaskItem(node),
       parentItemIndex: parentItemIndex,
+      dueDate: node.attrs?.dueDate || null,
+      projectTagId: node.attrs?.projectTagId || null,
     });
     if (node.content) {
       for (const child of node.content) {
@@ -158,115 +145,143 @@ function insertTaskItemIntoContent(content, todoId, text) {
   return content;
 }
 
-// ===== DB SETUP =====
+function now() {
+  return new Date().toISOString();
+}
 
-async function setupDatabase() {
-  const sql = getDb();
-  try {
-    await sql.unsafe(SCHEMA_SQL);
-    // Migration: convert existing tags to 'source' type if no source tags exist yet
-    const sourceCheck = await sql`SELECT COUNT(*) as cnt FROM tags WHERE type = 'source'`;
-    if (parseInt(sourceCheck[0]?.cnt || '0') === 0) {
-      await sql`UPDATE tags SET type = 'source' WHERE type = 'project'`;
-    }
-    return NextResponse.json({ success: true, message: 'Database schema created' });
-  } catch (error) {
-    console.error('Schema setup error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+async function getUser(supabase) {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+  return user;
 }
 
 // ===== NOTES HANDLERS =====
 
-async function getNotes(searchParams) {
-  const sql = getDb();
+async function getNotes(supabase, searchParams, ownerId) {
   const search = searchParams.get('search') || '';
   const tagId = searchParams.get('tag') || '';
-  const ownerId = searchParams.get('owner_id') || DEFAULT_OWNER;
+  const limit = parseInt(searchParams.get('limit')) || 50;
+  const offset = parseInt(searchParams.get('offset')) || 0;
+  const statusFilter = searchParams.get('status');
 
-  let notes;
+  // Build base query
+  let query = supabase.from('notes').select('*, note_tags(tag_id, tags(*))', { count: 'exact' })
+    .eq('owner_id', ownerId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (search) {
+    query = query.or(`title.ilike.%${search}%,content::text.ilike.%${search}%`);
+  }
+
+  const { data: notes, count, error } = await query;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Post-process: flatten tags, apply tag filters client-side
+  let result = notes.map(n => {
+    const tags = (n.note_tags || []).map(nt => nt.tags).filter(Boolean);
+    const { note_tags, ...rest } = n;
+    return { ...rest, tags };
+  });
+
+  // Tag filtering (post-query due to complexity)
   if (tagId) {
-    notes = await sql`
-      SELECT DISTINCT n.* FROM notes n
-      JOIN note_tags nt ON n.id = nt.note_id
-      WHERE n.owner_id = ${ownerId}
-      AND nt.tag_id = ${tagId}
-      ${search ? sql`AND (n.title ILIKE ${'%' + search + '%'})` : sql``}
-      ORDER BY n.updated_at DESC
-    `;
-  } else {
-    notes = await sql`
-      SELECT * FROM notes
-      WHERE owner_id = ${ownerId}
-      ${search ? sql`AND (title ILIKE ${'%' + search + '%'})` : sql``}
-      ORDER BY updated_at DESC
-    `;
+    const filterTags = tagId.split(',');
+    const hasUntagged = filterTags.includes('untagged');
+    const realTags = filterTags.filter(t => t !== 'untagged');
+
+    result = result.filter(note => {
+      const sourceTags = note.tags.filter(t => t.type === 'source');
+      const noteTagIds = sourceTags.map(t => t.id);
+
+      if (hasUntagged && realTags.length === 0) {
+        return sourceTags.length === 0;
+      } else if (hasUntagged && realTags.length > 0) {
+        return sourceTags.length === 0 || realTags.some(rt => noteTagIds.includes(rt));
+      } else {
+        return realTags.some(rt => noteTagIds.includes(rt));
+      }
+    });
   }
 
-  const noteIds = notes.map(n => n.id);
-  let noteTags = [];
-  if (noteIds.length > 0) {
-    noteTags = await sql`
-      SELECT nt.note_id, t.* FROM note_tags nt
-      JOIN tags t ON nt.tag_id = t.id
-      WHERE nt.note_id = ANY(${noteIds})
-    `;
+  // Status filtering requires checking todos for each note
+  if (statusFilter) {
+    const statuses = statusFilter.split(',');
+    const noteIds = result.map(n => n.id);
+
+    if (noteIds.length > 0) {
+      const { data: allTodos } = await supabase.from('todos')
+        .select('id, note_id, is_done, archived_at')
+        .in('note_id', noteIds)
+        .is('archived_at', null);
+
+      const todosByNote = {};
+      for (const t of (allTodos || [])) {
+        if (!todosByNote[t.note_id]) todosByNote[t.note_id] = [];
+        todosByNote[t.note_id].push(t);
+      }
+
+      result = result.filter(note => {
+        const todos = todosByNote[note.id] || [];
+        const hasOpen = todos.some(t => !t.is_done);
+        const hasTodos = todos.length > 0;
+        const allDone = hasTodos && !hasOpen;
+
+        return statuses.some(s => {
+          if (s === 'open') return hasOpen;
+          if (s === 'closed') return allDone;
+          if (s === 'no_action') return !hasTodos;
+          return false;
+        });
+      });
+    }
   }
 
-  const noteTagMap = {};
-  for (const nt of noteTags) {
-    if (!noteTagMap[nt.note_id]) noteTagMap[nt.note_id] = [];
-    noteTagMap[nt.note_id].push({ id: nt.id, name: nt.name, type: nt.type, color: nt.color });
-  }
-
-  const result = notes.map(n => ({
-    ...parseNote(n),
-    tags: noteTagMap[n.id] || [],
-  }));
-
-  return NextResponse.json(result);
+  return NextResponse.json({ data: result, total: count || result.length });
 }
 
-async function createNote(body) {
-  const sql = getDb();
-  const { title, content, owner_id } = body;
-  const ownerId = owner_id || DEFAULT_OWNER;
+async function createNote(supabase, body, ownerId) {
+  const { title, content } = body;
   const id = uuidv4();
+  const date = new Date(now());
+  const minutes = date.getMinutes();
+  const roundedMinutes = Math.round(minutes / 15) * 15;
+  date.setMinutes(roundedMinutes, 0, 0);
+  const timestamp = date.toISOString();
 
-  const [note] = await sql`
-    INSERT INTO notes (id, owner_id, title, content)
-    VALUES (${id}, ${ownerId}, ${title || ''}, ${content ? JSON.stringify(content) : null}::jsonb)
-    RETURNING *
-  `;
+  const { data, error } = await supabase.from('notes').insert({
+    id, owner_id: ownerId, title: title || '', content: content || null,
+    created_at: timestamp, updated_at: timestamp
+  }).select().single();
 
-  return NextResponse.json(parseNote(note), { status: 201 });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json(data, { status: 201 });
 }
 
-async function getNote(id) {
-  const sql = getDb();
-  const [note] = await sql`SELECT * FROM notes WHERE id = ${id}`;
-  if (!note) return NextResponse.json({ error: 'Note not found' }, { status: 404 });
+async function getNote(supabase, id) {
+  const { data: note, error } = await supabase.from('notes').select('*').eq('id', id).single();
+  if (error || !note) return NextResponse.json({ error: 'Note not found' }, { status: 404 });
 
-  const tags = await sql`
-    SELECT t.* FROM note_tags nt JOIN tags t ON nt.tag_id = t.id WHERE nt.note_id = ${id}
-  `;
+  const { data: noteTags } = await supabase.from('note_tags')
+    .select('tags(*)').eq('note_id', id);
+  const tags = (noteTags || []).map(nt => nt.tags).filter(Boolean);
 
-  return NextResponse.json({ ...parseNote(note), tags });
+  return NextResponse.json({ ...note, tags });
 }
 
-async function updateNote(id, body) {
-  const sql = getDb();
-  const { title, content, tags: tagIds } = body;
+async function updateNote(supabase, id, body, ownerId) {
+  const { title, content, tags: tagIds, created_at } = body;
 
-  const [existing] = await sql`SELECT * FROM notes WHERE id = ${id}`;
-  if (!existing) return NextResponse.json({ error: 'Note not found' }, { status: 404 });
-  const existingParsed = parseNote(existing);
+  const { data: existing, error: fetchErr } = await supabase.from('notes').select('*').eq('id', id).single();
+  if (fetchErr || !existing) return NextResponse.json({ error: 'Note not found' }, { status: 404 });
 
   let updatedContent = content;
   if (content) {
     const taskItems = extractTaskItems(content);
-    const existingTodos = await sql`SELECT * FROM todos WHERE note_id = ${id} AND archived_at IS NULL`;
-    const existingTodoMap = new Map(existingTodos.map(t => [t.id, t]));
+
+    const { data: existingTodos } = await supabase.from('todos')
+      .select('*').eq('note_id', id).is('archived_at', null);
+    const existingTodoMap = new Map((existingTodos || []).map(t => [t.id, t]));
     const contentTodoIds = new Set();
 
     for (let i = 0; i < taskItems.length; i++) {
@@ -279,29 +294,42 @@ async function updateNote(id, body) {
         contentTodoIds.add(item.todoId);
         const existingTodo = existingTodoMap.get(item.todoId);
         const isDoneChanged = item.checked !== existingTodo.is_done;
-        await sql`
-          UPDATE todos SET
-            text = ${item.text},
-            is_done = ${item.checked},
-            done_at = ${item.checked && isDoneChanged ? new Date() : (item.checked ? existingTodo.done_at : null)},
-            parent_todo_id = ${parentTodoId},
-            updated_at = NOW()
-          WHERE id = ${item.todoId}
-        `;
+
+        await supabase.from('todos').update({
+          text: item.text,
+          is_done: item.checked,
+          done_at: item.checked && isDoneChanged ? now() : (item.checked ? existingTodo.done_at : null),
+          parent_todo_id: parentTodoId,
+          due_date: item.dueDate,
+          updated_at: now()
+        }).eq('id', item.todoId);
+
+        // Sync projectTagId
+        await supabase.from('todo_tags').delete().eq('todo_id', item.todoId);
+        if (item.projectTagId) {
+          await supabase.from('todo_tags').upsert({ todo_id: item.todoId, tag_id: item.projectTagId });
+        }
       } else {
         const newId = uuidv4();
-        await sql`
-          INSERT INTO todos (id, owner_id, note_id, parent_todo_id, text, is_done, done_at, position)
-          VALUES (${newId}, ${existing.owner_id}, ${id}, ${parentTodoId}, ${item.text}, ${item.checked}, ${item.checked ? new Date() : null}, ${i})
-        `;
+        await supabase.from('todos').insert({
+          id: newId, owner_id: ownerId, note_id: id, parent_todo_id: parentTodoId,
+          text: item.text, is_done: item.checked, done_at: item.checked ? now() : null,
+          position: i, due_date: item.dueDate, created_at: now(), updated_at: now()
+        });
+
+        if (item.projectTagId) {
+          await supabase.from('todo_tags').upsert({ todo_id: newId, tag_id: item.projectTagId });
+        }
+
         taskItems[i].todoId = newId;
         contentTodoIds.add(newId);
       }
     }
 
-    for (const [todoId, todo] of existingTodoMap) {
+    // Archive removed todos
+    for (const [todoId] of existingTodoMap) {
       if (!contentTodoIds.has(todoId)) {
-        await sql`UPDATE todos SET archived_at = NOW(), updated_at = NOW() WHERE id = ${todoId}`;
+        await supabase.from('todos').update({ archived_at: now(), updated_at: now() }).eq('id', todoId);
       }
     }
 
@@ -309,332 +337,468 @@ async function updateNote(id, body) {
     updateContentTodoIds(updatedContent, taskItems);
   }
 
-  const [note] = await sql`
-    UPDATE notes SET
-      title = ${title !== undefined ? title : existingParsed.title},
-      content = ${updatedContent ? JSON.stringify(updatedContent) : null}::jsonb,
-      updated_at = NOW()
-    WHERE id = ${id}
-    RETURNING *
-  `;
+  await supabase.from('notes').update({
+    title: title !== undefined ? title : existing.title,
+    content: updatedContent !== undefined ? updatedContent : existing.content,
+    updated_at: now(),
+    created_at: created_at !== undefined ? created_at : existing.created_at
+  }).eq('id', id);
 
   if (tagIds !== undefined) {
-    await sql`DELETE FROM note_tags WHERE note_id = ${id}`;
+    await supabase.from('note_tags').delete().eq('note_id', id);
     if (tagIds && tagIds.length > 0) {
-      for (const tagId of tagIds) {
-        await sql`INSERT INTO note_tags (note_id, tag_id) VALUES (${id}, ${tagId}) ON CONFLICT DO NOTHING`;
-      }
+      await supabase.from('note_tags').insert(tagIds.map(tagId => ({ note_id: id, tag_id: tagId })));
     }
   }
 
-  const tags = await sql`SELECT t.* FROM note_tags nt JOIN tags t ON nt.tag_id = t.id WHERE nt.note_id = ${id}`;
-  return NextResponse.json({ ...parseNote(note), tags });
+  const { data: note } = await supabase.from('notes').select('*').eq('id', id).single();
+  const { data: noteTags } = await supabase.from('note_tags').select('tags(*)').eq('note_id', id);
+  const tags = (noteTags || []).map(nt => nt.tags).filter(Boolean);
+  return NextResponse.json({ ...note, tags });
 }
 
-async function deleteNote(id) {
-  const sql = getDb();
-  await sql`UPDATE todos SET note_id = NULL WHERE note_id = ${id}`;
-  await sql`DELETE FROM notes WHERE id = ${id}`;
+async function deleteNote(supabase, id) {
+  await supabase.from('todos').update({ note_id: null }).eq('note_id', id);
+  await supabase.from('notes').delete().eq('id', id);
   return NextResponse.json({ success: true });
 }
 
 // ===== TODOS HANDLERS =====
 
-async function getTodos(searchParams) {
-  const sql = getDb();
+async function getTodos(supabase, searchParams, ownerId) {
   const search = searchParams.get('search') || '';
   const status = searchParams.get('status') || 'all';
   const tagId = searchParams.get('tag') || '';
+  const projectId = searchParams.get('project_id') || '';
   const dateFrom = searchParams.get('date_from') || '';
   const dateTo = searchParams.get('date_to') || '';
-  const ownerId = searchParams.get('owner_id') || DEFAULT_OWNER;
+  const limit = parseInt(searchParams.get('limit')) || 50;
+  const offset = parseInt(searchParams.get('offset')) || 0;
+  const sort = searchParams.get('sort') || 'created_at';
 
-  // Build status condition
-  // 'open' = not done, not archived
-  // 'done' = done, not archived
-  // 'archived' = archived (regardless of done)
-  // 'all' = everything including archived
+  let query = supabase.from('todos').select('*, todo_tags(tag_id, tags(*))', { count: 'exact' })
+    .eq('owner_id', ownerId);
 
-  let todos;
-  if (tagId) {
-    todos = await sql`
-      SELECT DISTINCT t.* FROM todos t
-      JOIN todo_tags tt ON t.id = tt.todo_id
-      WHERE t.owner_id = ${ownerId}
-      AND tt.tag_id = ${tagId}
-      ${status === 'open' ? sql`AND t.is_done = FALSE AND t.archived_at IS NULL` : sql``}
-      ${status === 'done' ? sql`AND t.is_done = TRUE AND t.archived_at IS NULL` : sql``}
-      ${status === 'archived' ? sql`AND t.archived_at IS NOT NULL` : sql``}
-      ${search ? sql`AND t.text ILIKE ${'%' + search + '%'}` : sql``}
-      ${dateFrom ? sql`AND t.created_at >= ${dateFrom}::timestamptz` : sql``}
-      ${dateTo ? sql`AND t.created_at <= ${dateTo}::timestamptz` : sql``}
-      ORDER BY t.position ASC NULLS LAST, t.created_at DESC
-    `;
+  if (status && status !== 'all') {
+    const statuses = status.split(',');
+    const orConditions = [];
+    if (statuses.includes('open')) orConditions.push('and(is_done.eq.false,archived_at.is.null)');
+    if (statuses.includes('done')) orConditions.push('and(is_done.eq.true,archived_at.is.null)');
+    if (statuses.includes('archived')) orConditions.push('archived_at.not.is.null');
+    if (orConditions.length > 0) {
+      query = query.or(orConditions.join(','));
+    }
+  }
+
+  if (search) {
+    query = query.ilike('text', `%${search}%`);
+  }
+  if (dateFrom) {
+    query = query.gte('due_date', dateFrom);
+  }
+  if (dateTo) {
+    query = query.lte('due_date', dateTo);
+  }
+
+  if (sort === 'position') {
+    query = query.order('position', { ascending: true }).order('created_at', { ascending: false });
   } else {
-    todos = await sql`
-      SELECT * FROM todos
-      WHERE owner_id = ${ownerId}
-      ${status === 'open' ? sql`AND is_done = FALSE AND archived_at IS NULL` : sql``}
-      ${status === 'done' ? sql`AND is_done = TRUE AND archived_at IS NULL` : sql``}
-      ${status === 'archived' ? sql`AND archived_at IS NOT NULL` : sql``}
-      ${search ? sql`AND text ILIKE ${'%' + search + '%'}` : sql``}
-      ${dateFrom ? sql`AND created_at >= ${dateFrom}::timestamptz` : sql``}
-      ${dateTo ? sql`AND created_at <= ${dateTo}::timestamptz` : sql``}
-      ORDER BY position ASC NULLS LAST, created_at DESC
-    `;
+    query = query.order('created_at', { ascending: false }).order('position', { ascending: true });
   }
 
-  const todoIds = todos.map(t => t.id);
-  let todoTags = [];
-  if (todoIds.length > 0) {
-    todoTags = await sql`
-      SELECT tt.todo_id, tg.* FROM todo_tags tt
-      JOIN tags tg ON tt.tag_id = tg.id
-      WHERE tt.todo_id = ANY(${todoIds})
-    `;
+  query = query.range(offset, offset + limit - 1);
+
+  const { data: todos, count, error } = await query;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Flatten tags
+  let result = todos.map(t => {
+    const tags = (t.todo_tags || []).map(tt => tt.tags).filter(Boolean);
+    const { todo_tags, ...rest } = t;
+    return { ...rest, tags };
+  });
+
+  // Tag filtering (post-query)
+  if (tagId) {
+    const filterTags = tagId.split(',');
+    result = result.filter(todo => todo.tags.some(t => filterTags.includes(t.id)));
   }
 
-  const todoTagMap = {};
-  for (const tt of todoTags) {
-    if (!todoTagMap[tt.todo_id]) todoTagMap[tt.todo_id] = [];
-    todoTagMap[tt.todo_id].push({ id: tt.id, name: tt.name, type: tt.type, color: tt.color });
+  // Project filtering (post-query)
+  if (projectId) {
+    const pIds = projectId.split(',');
+    const wantsUntagged = pIds.includes('__untagged');
+    const validTags = pIds.filter(id => id !== '__untagged');
+
+    result = result.filter(todo => {
+      const projectTags = todo.tags.filter(t => t.type === 'project');
+      if (wantsUntagged && projectTags.length === 0) return true;
+      if (validTags.length > 0 && projectTags.some(t => validTags.includes(t.id))) return true;
+      return false;
+    });
   }
 
-  const result = todos.map(t => ({
-    ...t,
-    tags: todoTagMap[t.id] || [],
-  }));
-
-  return NextResponse.json(result);
+  return NextResponse.json({ data: result, total: count || result.length });
 }
 
-async function createTodo(body) {
-  const sql = getDb();
-  const { text, note_id, parent_todo_id, owner_id, position, tag_ids } = body;
-  const ownerId = owner_id || DEFAULT_OWNER;
+async function createTodo(supabase, body, ownerId) {
+  const { text, content, note_id, parent_todo_id, position, tag_ids, due_date } = body;
   const id = uuidv4();
+  const timestamp = now();
 
-  const [todo] = await sql`
-    INSERT INTO todos (id, owner_id, note_id, parent_todo_id, text, position)
-    VALUES (${id}, ${ownerId}, ${note_id || null}, ${parent_todo_id || null}, ${text || ''}, ${position || null})
-    RETURNING *
-  `;
+  const { error } = await supabase.from('todos').insert({
+    id, owner_id: ownerId, note_id: note_id || null, parent_todo_id: parent_todo_id || null,
+    text: text || '', content: content || null, position: position || null,
+    due_date: due_date || null, created_at: timestamp, updated_at: timestamp
+  });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Assign project tags if provided
   if (tag_ids && tag_ids.length > 0) {
-    for (const tagId of tag_ids) {
-      await sql`INSERT INTO todo_tags (todo_id, tag_id) VALUES (${id}, ${tagId}) ON CONFLICT DO NOTHING`;
-    }
+    await supabase.from('todo_tags').insert(tag_ids.map(tagId => ({ todo_id: id, tag_id: tagId })));
   }
 
   if (note_id) {
-    const [note] = await sql`SELECT * FROM notes WHERE id = ${note_id}`;
+    const { data: note } = await supabase.from('notes').select('*').eq('id', note_id).single();
     if (note) {
-      const parsedNote = parseNote(note);
-      const updatedContent = insertTaskItemIntoContent(parsedNote.content || { type: 'doc', content: [] }, id, text || '');
-      await sql`UPDATE notes SET content = ${JSON.stringify(updatedContent)}::jsonb, updated_at = NOW() WHERE id = ${note_id}`;
+      const updatedContent = insertTaskItemIntoContent(note.content || { type: 'doc', content: [] }, id, text || '');
+      await supabase.from('notes').update({ content: updatedContent, updated_at: now() }).eq('id', note_id);
     }
   }
 
-  // Return with tags
-  const todoTags = await sql`SELECT t.* FROM todo_tags tt JOIN tags t ON tt.tag_id = t.id WHERE tt.todo_id = ${id}`;
-  return NextResponse.json({ ...todo, tags: todoTags }, { status: 201 });
+  const { data: todo } = await supabase.from('todos').select('*').eq('id', id).single();
+  const { data: todoTags } = await supabase.from('todo_tags').select('tags(*)').eq('todo_id', id);
+  const tags = (todoTags || []).map(tt => tt.tags).filter(Boolean);
+  return NextResponse.json({ ...todo, tags }, { status: 201 });
 }
 
-async function updateTodo(id, body) {
-  const sql = getDb();
-  const { text, is_done, note_id } = body;
+async function updateTodo(supabase, id, body) {
+  const { text, content, is_done, note_id, tags, due_date, recurrence } = body;
 
-  const [existing] = await sql`SELECT * FROM todos WHERE id = ${id}`;
+  const { data: existing } = await supabase.from('todos').select('*').eq('id', id).single();
   if (!existing) return NextResponse.json({ error: 'Todo not found' }, { status: 404 });
 
   const newText = text !== undefined ? text : existing.text;
+  const newContent = content !== undefined ? content : existing.content;
+  const newDueDate = due_date !== undefined ? due_date : existing.due_date;
+  const newRecurrence = recurrence !== undefined ? (recurrence || null) : existing.recurrence;
   const newIsDone = is_done !== undefined ? is_done : existing.is_done;
   const isDoneChanged = is_done !== undefined && is_done !== existing.is_done;
-  const doneAt = newIsDone ? (isDoneChanged ? new Date() : existing.done_at) : null;
+  const doneAt = newIsDone ? (isDoneChanged ? now() : existing.done_at) : null;
 
-  const [todo] = await sql`
-    UPDATE todos SET
-      text = ${newText},
-      is_done = ${newIsDone},
-      done_at = ${doneAt},
-      note_id = ${note_id !== undefined ? note_id : existing.note_id},
-      updated_at = NOW()
-    WHERE id = ${id}
-    RETURNING *
-  `;
+  await supabase.from('todos').update({
+    text: newText, content: newContent, is_done: newIsDone, done_at: doneAt,
+    note_id: note_id !== undefined ? note_id : existing.note_id,
+    due_date: newDueDate, recurrence: newRecurrence, updated_at: now()
+  }).eq('id', id);
 
   if (isDoneChanged && newIsDone) {
-    const children = await sql`SELECT id FROM todos WHERE parent_todo_id = ${id} AND archived_at IS NULL`;
-    for (const child of children) {
-      await sql`UPDATE todos SET is_done = TRUE, done_at = NOW(), updated_at = NOW() WHERE id = ${child.id}`;
+    // Complete children
+    await supabase.from('todos').update({ is_done: true, done_at: now(), updated_at: now() })
+      .eq('parent_todo_id', id).is('archived_at', null);
+
+    // Handle recurring todos
+    if (newRecurrence && (newDueDate || existing.due_date)) {
+      const nextDueDate = calculateNextDueDate(newDueDate || existing.due_date, newRecurrence);
+      if (nextDueDate) {
+        const newTodoId = uuidv4();
+        await supabase.from('todos').insert({
+          id: newTodoId, owner_id: existing.owner_id, note_id: existing.note_id,
+          parent_todo_id: existing.parent_todo_id, text: newText, content: newContent,
+          is_done: false, done_at: null, due_date: nextDueDate, recurrence: newRecurrence,
+          position: existing.position, created_at: now(), updated_at: now()
+        });
+
+        // Copy tags
+        const { data: existingTags } = await supabase.from('todo_tags').select('tag_id').eq('todo_id', id);
+        if (existingTags && existingTags.length > 0) {
+          await supabase.from('todo_tags').insert(existingTags.map(t => ({ todo_id: newTodoId, tag_id: t.tag_id })));
+        }
+      }
     }
   }
 
+  // Sync todo text back to note content
   if (existing.note_id) {
-    const [note] = await sql`SELECT * FROM notes WHERE id = ${existing.note_id}`;
-    if (note) {
-      const parsedNote = parseNote(note);
-      if (parsedNote.content) {
-        const updatedContent = updateTodoInContent(JSON.parse(JSON.stringify(parsedNote.content)), id, newText, newIsDone);
-        await sql`UPDATE notes SET content = ${JSON.stringify(updatedContent)}::jsonb, updated_at = NOW() WHERE id = ${existing.note_id}`;
-      }
+    const { data: note } = await supabase.from('notes').select('*').eq('id', existing.note_id).single();
+    if (note && note.content) {
+      const updatedContent = updateTodoInContent(JSON.parse(JSON.stringify(note.content)), id, newText, newIsDone);
+      await supabase.from('notes').update({ content: updatedContent, updated_at: now() }).eq('id', existing.note_id);
     }
   }
 
   if (note_id && note_id !== existing.note_id) {
-    const [note] = await sql`SELECT * FROM notes WHERE id = ${note_id}`;
+    const { data: note } = await supabase.from('notes').select('*').eq('id', note_id).single();
     if (note) {
-      const parsedNote = parseNote(note);
-      const updatedContent = insertTaskItemIntoContent(parsedNote.content || { type: 'doc', content: [] }, id, newText);
-      await sql`UPDATE notes SET content = ${JSON.stringify(updatedContent)}::jsonb, updated_at = NOW() WHERE id = ${note_id}`;
+      const updatedContent = insertTaskItemIntoContent(note.content || { type: 'doc', content: [] }, id, newText);
+      await supabase.from('notes').update({ content: updatedContent, updated_at: now() }).eq('id', note_id);
     }
   }
 
-  const todoTags = await sql`SELECT t.* FROM todo_tags tt JOIN tags t ON tt.tag_id = t.id WHERE tt.todo_id = ${id}`;
-  return NextResponse.json({ ...todo, tags: todoTags });
+  if (tags !== undefined && Array.isArray(tags)) {
+    await supabase.from('todo_tags').delete().eq('todo_id', id);
+    if (tags.length > 0) {
+      await supabase.from('todo_tags').insert(tags.map(tagId => ({ todo_id: id, tag_id: tagId })));
+    }
+  }
+
+  const { data: todo } = await supabase.from('todos').select('*').eq('id', id).single();
+  const { data: todoTags } = await supabase.from('todo_tags').select('tags(*)').eq('todo_id', id);
+  const resultTags = (todoTags || []).map(tt => tt.tags).filter(Boolean);
+  return NextResponse.json({ ...todo, tags: resultTags });
 }
 
-async function deleteTodo(id) {
-  const sql = getDb();
-  const [todo] = await sql`SELECT * FROM todos WHERE id = ${id}`;
+async function deleteTodo(supabase, id) {
+  const { data: todo } = await supabase.from('todos').select('*').eq('id', id).single();
   if (!todo) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  await sql`DELETE FROM todos WHERE id = ${id}`;
+  await supabase.from('todos').delete().eq('id', id);
   return NextResponse.json({ success: true });
 }
 
-async function toggleTodo(id, body) {
-  const sql = getDb();
-  const [existing] = await sql`SELECT * FROM todos WHERE id = ${id}`;
+async function toggleTodo(supabase, id, body) {
+  const { data: existing } = await supabase.from('todos').select('*').eq('id', id).single();
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const newDone = body?.is_done !== undefined ? body.is_done : !existing.is_done;
-  const doneAt = newDone ? new Date() : null;
+  const doneAt = newDone ? now() : null;
+  const isDoneChanged = newDone !== existing.is_done;
 
-  const [todo] = await sql`
-    UPDATE todos SET is_done = ${newDone}, done_at = ${doneAt}, updated_at = NOW()
-    WHERE id = ${id} RETURNING *
-  `;
+  await supabase.from('todos').update({ is_done: newDone, done_at: doneAt, updated_at: now() }).eq('id', id);
 
   if (newDone) {
-    await sql`UPDATE todos SET is_done = TRUE, done_at = NOW(), updated_at = NOW() WHERE parent_todo_id = ${id} AND archived_at IS NULL`;
-  }
+    await supabase.from('todos').update({ is_done: true, done_at: now(), updated_at: now() })
+      .eq('parent_todo_id', id).is('archived_at', null);
 
-  if (existing.note_id) {
-    const [note] = await sql`SELECT * FROM notes WHERE id = ${existing.note_id}`;
-    if (note) {
-      const parsedNote = parseNote(note);
-      if (parsedNote.content) {
-        const updatedContent = updateTodoInContent(JSON.parse(JSON.stringify(parsedNote.content)), id, existing.text, newDone);
-        await sql`UPDATE notes SET content = ${JSON.stringify(updatedContent)}::jsonb, updated_at = NOW() WHERE id = ${existing.note_id}`;
+    // Handle recurring todos
+    if (isDoneChanged) {
+      const recurrencePattern = existing.recurrence;
+      if (recurrencePattern && existing.due_date) {
+        const nextDueDate = calculateNextDueDate(existing.due_date, recurrencePattern);
+        if (nextDueDate) {
+          const newTodoId = uuidv4();
+          await supabase.from('todos').insert({
+            id: newTodoId, owner_id: existing.owner_id, note_id: existing.note_id,
+            parent_todo_id: existing.parent_todo_id, text: existing.text, content: existing.content,
+            is_done: false, done_at: null, due_date: nextDueDate, recurrence: existing.recurrence,
+            position: existing.position, created_at: now(), updated_at: now()
+          });
+
+          const { data: existingTags } = await supabase.from('todo_tags').select('tag_id').eq('todo_id', id);
+          if (existingTags && existingTags.length > 0) {
+            await supabase.from('todo_tags').insert(existingTags.map(t => ({ todo_id: newTodoId, tag_id: t.tag_id })));
+          }
+        }
       }
     }
   }
 
+  if (existing.note_id) {
+    const { data: note } = await supabase.from('notes').select('*').eq('id', existing.note_id).single();
+    if (note && note.content) {
+      const updatedContent = updateTodoInContent(JSON.parse(JSON.stringify(note.content)), id, existing.text, newDone);
+      await supabase.from('notes').update({ content: updatedContent, updated_at: now() }).eq('id', existing.note_id);
+    }
+  }
+
+  const { data: todo } = await supabase.from('todos').select('*').eq('id', id).single();
   return NextResponse.json(todo);
 }
 
-async function archiveTodo(id) {
-  const sql = getDb();
-  const [existing] = await sql`SELECT * FROM todos WHERE id = ${id}`;
+async function archiveTodo(supabase, id) {
+  const { data: existing } = await supabase.from('todos').select('*').eq('id', id).single();
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const isArchived = !!existing.archived_at;
-  const [todo] = await sql`
-    UPDATE todos SET
-      archived_at = ${isArchived ? null : new Date()},
-      updated_at = NOW()
-    WHERE id = ${id} RETURNING *
-  `;
+  await supabase.from('todos').update({
+    archived_at: isArchived ? null : now(), updated_at: now()
+  }).eq('id', id);
 
+  const { data: todo } = await supabase.from('todos').select('*').eq('id', id).single();
   return NextResponse.json(todo);
+}
+
+async function reorderTodo(supabase, body) {
+  const { todoId, newPosition, oldProjectTagId, newProjectTagId } = body;
+
+  const { data: existing } = await supabase.from('todos').select('*').eq('id', todoId).single();
+  if (!existing) return NextResponse.json({ error: 'Todo not found' }, { status: 404 });
+
+  await supabase.from('todos').update({ position: newPosition, updated_at: now() }).eq('id', todoId);
+
+  if (oldProjectTagId !== newProjectTagId) {
+    if (oldProjectTagId) {
+      await supabase.from('todo_tags').delete().eq('todo_id', todoId).eq('tag_id', oldProjectTagId);
+    }
+    if (newProjectTagId) {
+      await supabase.from('todo_tags').upsert({ todo_id: todoId, tag_id: newProjectTagId });
+    }
+  }
+
+  const { data: todo } = await supabase.from('todos').select('*').eq('id', todoId).single();
+  const { data: todoTags } = await supabase.from('todo_tags').select('tags(*)').eq('todo_id', todoId);
+  const tags = (todoTags || []).map(tt => tt.tags).filter(Boolean);
+  return NextResponse.json({ ...todo, tags });
+}
+
+async function batchReorderTodos(supabase, body) {
+  const { orderedIds } = body;
+  if (!orderedIds || !Array.isArray(orderedIds)) {
+    return NextResponse.json({ error: 'orderedIds required' }, { status: 400 });
+  }
+  const ts = now();
+  for (let i = 0; i < orderedIds.length; i++) {
+    await supabase.from('todos').update({ position: i, updated_at: ts }).eq('id', orderedIds[i]);
+  }
+  return NextResponse.json({ success: true });
 }
 
 // ===== TAGS HANDLERS =====
 
-async function getTags(searchParams) {
-  const sql = getDb();
-  const ownerId = searchParams.get('owner_id') || DEFAULT_OWNER;
+async function getTags(supabase, searchParams, ownerId) {
   const type = searchParams.get('type') || '';
-  let tags;
-  if (type) {
-    tags = await sql`SELECT * FROM tags WHERE owner_id = ${ownerId} AND type = ${type} ORDER BY name`;
+  const includeArchived = searchParams.get('include_archived') === 'true';
+
+  let query = supabase.from('tags').select('*').eq('owner_id', ownerId);
+
+  if (includeArchived) {
+    query = query.not('archived_at', 'is', null);
   } else {
-    tags = await sql`SELECT * FROM tags WHERE owner_id = ${ownerId} ORDER BY type, name`;
+    query = query.is('archived_at', null);
   }
+
+  if (type) {
+    query = query.eq('type', type);
+  }
+
+  query = query.order('type').order('position', { ascending: true }).order('name');
+
+  const { data: tags, error } = await query;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(tags);
 }
 
-async function createTag(body) {
-  const sql = getDb();
-  const { name, type, color, owner_id } = body;
-  const ownerId = owner_id || DEFAULT_OWNER;
+async function createTag(supabase, body, ownerId) {
+  const { name, type, color } = body;
   const id = uuidv4();
-  const [tag] = await sql`
-    INSERT INTO tags (id, owner_id, name, type, color)
-    VALUES (${id}, ${ownerId}, ${name}, ${type || 'project'}, ${color || null})
-    RETURNING *
-  `;
+
+  // Get max position for this type
+  const { data: maxPosRows } = await supabase.from('tags')
+    .select('position').eq('owner_id', ownerId).eq('type', type || 'project')
+    .order('position', { ascending: false }).limit(1);
+  const position = (maxPosRows && maxPosRows.length > 0 && maxPosRows[0].position !== null) ? maxPosRows[0].position + 1 : 0;
+
+  const { data: tag, error } = await supabase.from('tags').insert({
+    id, owner_id: ownerId, name, type: type || 'project', color: color || null, position
+  }).select().single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(tag, { status: 201 });
 }
 
-async function updateTag(id, body) {
-  const sql = getDb();
-  const { name, color } = body;
-  const [existing] = await sql`SELECT * FROM tags WHERE id = ${id}`;
+async function batchReorderTags(supabase, body) {
+  const { orderedIds } = body;
+  if (!orderedIds || !Array.isArray(orderedIds)) {
+    return NextResponse.json({ error: 'orderedIds required' }, { status: 400 });
+  }
+  for (let i = 0; i < orderedIds.length; i++) {
+    await supabase.from('tags').update({ position: i }).eq('id', orderedIds[i]);
+  }
+  return NextResponse.json({ success: true });
+}
+
+async function updateTag(supabase, id, body) {
+  const { name, color, archived } = body;
+  const { data: existing } = await supabase.from('tags').select('*').eq('id', id).single();
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  const [tag] = await sql`
-    UPDATE tags SET name = ${name || existing.name}, color = ${color !== undefined ? color : existing.color}
-    WHERE id = ${id} RETURNING *
-  `;
+
+  const updates = {};
+  if (archived === true) updates.archived_at = now();
+  else if (archived === false) updates.archived_at = null;
+  if (name !== undefined) updates.name = name;
+  if (color !== undefined) updates.color = color;
+
+  if (Object.keys(updates).length > 0) {
+    await supabase.from('tags').update(updates).eq('id', id);
+  }
+
+  const { data: tag } = await supabase.from('tags').select('*').eq('id', id).single();
   return NextResponse.json(tag);
 }
 
-async function deleteTag(id) {
-  const sql = getDb();
-  await sql`DELETE FROM tags WHERE id = ${id}`;
+async function deleteTag(supabase, id) {
+  await supabase.from('note_tags').delete().eq('tag_id', id);
+  await supabase.from('todo_tags').delete().eq('tag_id', id);
+  await supabase.from('tags').delete().eq('id', id);
   return NextResponse.json({ success: true });
 }
 
 // ===== TAG ASSIGNMENTS =====
 
-async function addNoteTag(body) {
-  const sql = getDb();
+async function addNoteTag(supabase, body) {
   const { note_id, tag_id } = body;
-  await sql`INSERT INTO note_tags (note_id, tag_id) VALUES (${note_id}, ${tag_id}) ON CONFLICT DO NOTHING`;
+  await supabase.from('note_tags').upsert({ note_id, tag_id });
   return NextResponse.json({ success: true });
 }
 
-async function removeNoteTag(noteId, tagId) {
-  const sql = getDb();
-  await sql`DELETE FROM note_tags WHERE note_id = ${noteId} AND tag_id = ${tagId}`;
+async function removeNoteTag(supabase, noteId, tagId) {
+  await supabase.from('note_tags').delete().eq('note_id', noteId).eq('tag_id', tagId);
   return NextResponse.json({ success: true });
 }
 
-async function addTodoTag(body) {
-  const sql = getDb();
+async function addTodoTag(supabase, body) {
   const { todo_id, tag_id } = body;
-  await sql`INSERT INTO todo_tags (todo_id, tag_id) VALUES (${todo_id}, ${tag_id}) ON CONFLICT DO NOTHING`;
+  await supabase.from('todo_tags').upsert({ todo_id, tag_id });
   return NextResponse.json({ success: true });
 }
 
-async function removeTodoTag(todoId, tagId) {
-  const sql = getDb();
-  await sql`DELETE FROM todo_tags WHERE todo_id = ${todoId} AND tag_id = ${tagId}`;
+async function removeTodoTag(supabase, todoId, tagId) {
+  await supabase.from('todo_tags').delete().eq('todo_id', todoId).eq('tag_id', tagId);
   return NextResponse.json({ success: true });
+}
+
+// ===== PREFERENCES =====
+
+async function getPreferences(supabase, ownerId) {
+  const { data, error } = await supabase
+    .from('user_preferences')
+    .select('key, value')
+    .eq('owner_id', ownerId);
+  if (error) throw error;
+  const prefs = {};
+  for (const row of (data || [])) {
+    prefs[row.key] = row.value;
+  }
+  return NextResponse.json(prefs);
+}
+
+async function upsertPreference(supabase, ownerId, key, value) {
+  const { data, error } = await supabase
+    .from('user_preferences')
+    .upsert(
+      { owner_id: ownerId, key, value, updated_at: new Date().toISOString() },
+      { onConflict: 'owner_id,key' }
+    )
+    .select()
+    .single();
+  if (error) throw error;
+  return NextResponse.json(data);
 }
 
 // ===== ROUTE HANDLERS =====
 
 export async function GET(request, { params }) {
   try {
+    const supabase = createClient();
+    const user = await getUser(supabase);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const path = params?.path || [];
     const { searchParams } = new URL(request.url);
 
-    if (path[0] === 'notes' && path[1]) return getNote(path[1]);
-    if (path[0] === 'notes') return getNotes(searchParams);
-    if (path[0] === 'todos') return getTodos(searchParams);
-    if (path[0] === 'tags') return getTags(searchParams);
+    if (path[0] === 'preferences') return getPreferences(supabase, user.id);
+    if (path[0] === 'notes' && path[1]) return getNote(supabase, path[1]);
+    if (path[0] === 'notes') return getNotes(supabase, searchParams, user.id);
+    if (path[0] === 'todos') return getTodos(supabase, searchParams, user.id);
+    if (path[0] === 'tags') return getTags(supabase, searchParams, user.id);
 
     return NextResponse.json({ status: 'API running' });
   } catch (error) {
@@ -645,15 +809,21 @@ export async function GET(request, { params }) {
 
 export async function POST(request, { params }) {
   try {
+    const supabase = createClient();
+    const user = await getUser(supabase);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const path = params?.path || [];
     const body = await request.json().catch(() => ({}));
 
-    if (path[0] === 'db' && path[1] === 'setup') return setupDatabase();
-    if (path[0] === 'notes') return createNote(body);
-    if (path[0] === 'todos') return createTodo(body);
-    if (path[0] === 'tags') return createTag(body);
-    if (path[0] === 'note-tags') return addNoteTag(body);
-    if (path[0] === 'todo-tags') return addTodoTag(body);
+    if (path[0] === 'notes') return createNote(supabase, body, user.id);
+    if (path[0] === 'todos' && path[1] === 'reorder') return reorderTodo(supabase, body);
+    if (path[0] === 'todos' && path[1] === 'batch-reorder') return batchReorderTodos(supabase, body);
+    if (path[0] === 'todos') return createTodo(supabase, body, user.id);
+    if (path[0] === 'tags' && path[1] === 'batch-reorder') return batchReorderTags(supabase, body);
+    if (path[0] === 'tags') return createTag(supabase, body, user.id);
+    if (path[0] === 'note-tags') return addNoteTag(supabase, body);
+    if (path[0] === 'todo-tags') return addTodoTag(supabase, body);
 
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   } catch (error) {
@@ -664,12 +834,17 @@ export async function POST(request, { params }) {
 
 export async function PUT(request, { params }) {
   try {
+    const supabase = createClient();
+    const user = await getUser(supabase);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const path = params?.path || [];
     const body = await request.json().catch(() => ({}));
 
-    if (path[0] === 'notes' && path[1]) return updateNote(path[1], body);
-    if (path[0] === 'todos' && path[1]) return updateTodo(path[1], body);
-    if (path[0] === 'tags' && path[1]) return updateTag(path[1], body);
+    if (path[0] === 'preferences' && path[1]) return upsertPreference(supabase, user.id, path[1], body.value);
+    if (path[0] === 'notes' && path[1]) return updateNote(supabase, path[1], body, user.id);
+    if (path[0] === 'todos' && path[1]) return updateTodo(supabase, path[1], body);
+    if (path[0] === 'tags' && path[1]) return updateTag(supabase, path[1], body);
 
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   } catch (error) {
@@ -680,13 +855,17 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   try {
+    const supabase = createClient();
+    const user = await getUser(supabase);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const path = params?.path || [];
 
-    if (path[0] === 'notes' && path[1]) return deleteNote(path[1]);
-    if (path[0] === 'todos' && path[1]) return deleteTodo(path[1]);
-    if (path[0] === 'tags' && path[1]) return deleteTag(path[1]);
-    if (path[0] === 'note-tags' && path[1] && path[2]) return removeNoteTag(path[1], path[2]);
-    if (path[0] === 'todo-tags' && path[1] && path[2]) return removeTodoTag(path[1], path[2]);
+    if (path[0] === 'notes' && path[1]) return deleteNote(supabase, path[1]);
+    if (path[0] === 'todos' && path[1]) return deleteTodo(supabase, path[1]);
+    if (path[0] === 'tags' && path[1]) return deleteTag(supabase, path[1]);
+    if (path[0] === 'note-tags' && path[1] && path[2]) return removeNoteTag(supabase, path[1], path[2]);
+    if (path[0] === 'todo-tags' && path[1] && path[2]) return removeTodoTag(supabase, path[1], path[2]);
 
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   } catch (error) {
@@ -697,11 +876,15 @@ export async function DELETE(request, { params }) {
 
 export async function PATCH(request, { params }) {
   try {
+    const supabase = createClient();
+    const user = await getUser(supabase);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const path = params?.path || [];
     const body = await request.json().catch(() => ({}));
 
-    if (path[0] === 'todos' && path[1] && path[2] === 'toggle') return toggleTodo(path[1], body);
-    if (path[0] === 'todos' && path[1] && path[2] === 'archive') return archiveTodo(path[1]);
+    if (path[0] === 'todos' && path[1] && path[2] === 'toggle') return toggleTodo(supabase, path[1], body);
+    if (path[0] === 'todos' && path[1] && path[2] === 'archive') return archiveTodo(supabase, path[1]);
 
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   } catch (error) {

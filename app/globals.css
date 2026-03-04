@@ -38,6 +38,7 @@
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
@@ -78,6 +79,12 @@
   * {
     @apply border-border;
   }
+
+  html,
+  body {
+    @apply h-screen overflow-hidden w-full m-0 p-0;
+  }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -87,96 +94,151 @@
 .tiptap {
   outline: none;
   min-height: 120px;
+  font-size: 13px;
 }
 
 .tiptap p {
-  margin: 0.25rem 0;
+  margin: 0 0;
 }
 
-.tiptap h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0.75rem 0 0.25rem;
-}
-
-.tiptap h2 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin: 0.5rem 0 0.25rem;
-}
-
+.tiptap h1,
+.tiptap h2,
 .tiptap h3 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin: 0.5rem 0 0.25rem;
+  margin: 0;
+  padding: 0;
 }
 
+/* ── Shared list spacing ──
+   All vertical spacing between list items is controlled by li padding.
+   p margins inside list items are zeroed to prevent misalignment. */
+
+/* Bullet list */
 .tiptap ul:not([data-type="taskList"]) {
   list-style-type: disc;
   padding-left: 1.5rem;
-  margin: 0.25rem 0;
+  margin: 0 0;
 }
 
+.tiptap ul:not([data-type="taskList"]) li {
+  padding: 0 0;
+}
+
+.tiptap ul:not([data-type="taskList"]) li>p {
+  margin: 0;
+}
+
+/* Ordered list */
 .tiptap ol {
   list-style-type: decimal;
   padding-left: 1.5rem;
-  margin: 0.25rem 0;
+  margin: 0 0;
 }
 
+.tiptap ol li {
+  padding: 0 0;
+}
+
+.tiptap ol li>p {
+  margin: 0;
+}
+
+/* Nested bullet styles */
 .tiptap ul:not([data-type="taskList"]) ul:not([data-type="taskList"]) {
   list-style-type: circle;
+  margin: 0;
 }
 
 .tiptap ul:not([data-type="taskList"]) ul:not([data-type="taskList"]) ul:not([data-type="taskList"]) {
   list-style-type: square;
 }
 
+/* Nested ordered styles */
 .tiptap ol ol {
   list-style-type: lower-alpha;
+  margin: 0;
 }
 
 .tiptap ol ol ol {
   list-style-type: lower-roman;
 }
 
+/* ── Task list ──
+   Uses a fixed-width marker column (1.5rem) matching bullet padding-left,
+   so task text starts at the same x-position as bullet text.
+   The label height is set to the text line-height (1.4 × font-size)
+   so the checkbox naturally centers at the text midline. */
+
 .tiptap ul[data-type="taskList"] {
   list-style: none;
-  padding: 0;
-  margin: 0.25rem 0;
+  padding-left: 0;
+  margin: 0 0;
 }
 
 .tiptap ul[data-type="taskList"] li {
   display: flex;
   align-items: flex-start;
-  gap: 0.5rem;
-  padding: 0.125rem 0;
+  /* align to top so label height controls position */
+  padding: 0 0;
+  /* same as bullet li padding */
 }
 
-.tiptap ul[data-type="taskList"] li > label {
-  margin-top: 0.2rem;
-  flex-shrink: 0;
+/* Marker column: same width as bullet indent */
+.tiptap ul[data-type="taskList"] li>label {
+  flex: 0 0 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Match the text line-height so checkbox centers at the text midline.
+     At font-size 0.875rem (14px) × line-height 1.4 ≈ 19.6px.
+     Using em so it scales with font size. */
+  height: 1.4em;
+  cursor: pointer;
 }
 
-.tiptap ul[data-type="taskList"] li > label input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
+.tiptap ul[data-type="taskList"] li>label input[type="checkbox"] {
+  width: 12px;
+  height: 12px;
   cursor: pointer;
   accent-color: hsl(var(--primary));
+  margin: 0;
+  padding: 0;
 }
 
-.tiptap ul[data-type="taskList"] li > div {
+.tiptap ul[data-type="taskList"] li>label input[type="checkbox"]:checked {
+  accent-color: hsl(var(--muted-foreground));
+  opacity: 0.5;
+}
+
+/* Text column */
+.tiptap ul[data-type="taskList"] li>div {
   flex: 1;
   min-width: 0;
 }
 
-.tiptap ul[data-type="taskList"] li[data-checked="true"] > div > p {
+/* Zero p margin inside task items — spacing is from li padding */
+.tiptap ul[data-type="taskList"] li>div>p {
+  margin: 0;
+}
+
+.tiptap ul[data-type="taskList"] li[data-checked="true"]>div>p {
   text-decoration: line-through;
   color: hsl(var(--muted-foreground));
 }
 
-/* Nested task lists */
+/* Nested task lists: indent by marker column width */
 .tiptap ul[data-type="taskList"] ul[data-type="taskList"] {
   padding-left: 1.5rem;
+  margin: 0;
+}
+
+/* Nested bullets inside task lists */
+.tiptap ul[data-type="taskList"] ul:not([data-type="taskList"]) {
+  margin: 0;
+}
+
+/* Nested tasks inside bullet lists */
+.tiptap ul:not([data-type="taskList"]) ul[data-type="taskList"] {
+  margin: 0;
 }
 
 .tiptap .is-editor-empty:first-child::before {
@@ -202,4 +264,49 @@
 
 .tiptap s {
   text-decoration: line-through;
+}
+
+.tiptap table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  overflow: hidden;
+}
+
+.tiptap table td,
+.tiptap table th {
+  border: 1px solid hsl(var(--border));
+  padding: 4px 8px;
+  position: relative;
+  vertical-align: top;
+  min-width: 60px;
+}
+
+.tiptap table th {
+  background-color: hsl(var(--muted));
+  font-weight: 600;
+}
+
+.tiptap table td > p,
+.tiptap table th > p {
+  margin: 0;
+}
+
+.tiptap table .selectedCell {
+  background-color: hsl(var(--primary) / 0.1);
+}
+
+.tiptap table .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: hsl(var(--primary));
+  pointer-events: none;
+}
+
+.tiptap .tableWrapper {
+  overflow-x: auto;
+  margin: 8px 0;
 }
