@@ -222,11 +222,11 @@ export default function NotesBrowser({
                                                                 const actionItems = extractActionItems(note.content);
                                                                 if (actionItems.length === 0) return null;
                                                                 const totalCount = actionItems.length;
-                                                                const openCount = actionItems.filter(t => !t.isChecked).length;
+                                                                const completedCount = actionItems.filter(t => t.isChecked).length;
                                                                 return (
                                                                     <div className="flex items-center gap-1 px-1 py-0.5 rounded text-[10px] font-medium bg-muted/60 text-muted-foreground">
                                                                         <CheckSquare size={9} />
-                                                                        <span>{openCount}/{totalCount}</span>
+                                                                        <span>{completedCount}/{totalCount}</span>
                                                                     </div>
                                                                 );
                                                             })()}
