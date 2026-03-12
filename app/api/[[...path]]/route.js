@@ -270,7 +270,7 @@ async function getNote(supabase, id) {
 }
 
 async function updateNote(supabase, id, body, ownerId) {
-  const { title, content, tags: tagIds, created_at } = body;
+  const { title, content, tags: tagIds, created_at, transcript, transcript_status } = body;
 
   const { data: existing, error: fetchErr } = await supabase.from('notes').select('*').eq('id', id).single();
   if (fetchErr || !existing) return NextResponse.json({ error: 'Note not found' }, { status: 404 });
@@ -341,7 +341,9 @@ async function updateNote(supabase, id, body, ownerId) {
     title: title !== undefined ? title : existing.title,
     content: updatedContent !== undefined ? updatedContent : existing.content,
     updated_at: now(),
-    created_at: created_at !== undefined ? created_at : existing.created_at
+    created_at: created_at !== undefined ? created_at : existing.created_at,
+    ...(transcript !== undefined && { transcript }),
+    ...(transcript_status !== undefined && { transcript_status }),
   }).eq('id', id);
 
   if (tagIds !== undefined) {

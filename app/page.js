@@ -28,6 +28,8 @@ import TodosBrowser from '@/components/TodosBrowser';
 import TodoDetailPanel from '@/components/TodoDetailPanel';
 import TagsManagement from '@/components/TagsManagement';
 import QuickAddModal from '@/components/QuickAddModal';
+import RecordingControls from '@/components/RecordingControls';
+import TranscriptViewer from '@/components/TranscriptViewer';
 import { toast } from 'sonner';
 
 class ErrorBoundary extends React.Component {
@@ -501,6 +503,7 @@ export default function App() {
   const [sourceTags, setSourceTags] = useState([]);
   const [projectTags, setProjectTags] = useState([]);
   const [selectedNoteId, setSelectedNoteId] = useState(null);
+  const [noteTab, setNoteTab] = useState('notes'); // 'notes' | 'transcript'
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState([]);
   const [todoFilters, setTodoFilters] = useState(['open']);
@@ -935,6 +938,7 @@ export default function App() {
       });
       setNotes(prev => [{ ...note, tags: [] }, ...prev]);
       setSelectedNoteId(note.id);
+      setNoteTab('notes');
       setEditingNote({ ...note, tags: [] });
     } catch (e) { console.error('Create note error:', e); }
   };
@@ -978,6 +982,41 @@ export default function App() {
       saveNote(noteId, title, content, tagIds, created_at);
     }, 1500);
   };
+
+  // ===== TRANSCRIPT OPERATIONS =====
+  const handleTranscriptReady = useCallback(async (transcript) => {
+    if (!editingNote) return;
+    const noteId = editingNote.id;
+    // Optimistic local update
+    setEditingNote(prev => ({ ...prev, transcript, transcript_status: 'done' }));
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, transcript, transcript_status: 'done' } : n));
+    setNoteTab('transcript');
+    // Persist to DB
+    try {
+      await api(`notes/${noteId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ transcript, transcript_status: 'done' }),
+      });
+    } catch (e) {
+      console.error('Failed to save transcript:', e);
+      toast.error('Could not save transcript');
+    }
+  }, [editingNote]);
+
+  const handleTranscriptChange = useCallback(async (newTranscript) => {
+    if (!editingNote) return;
+    const noteId = editingNote.id;
+    setEditingNote(prev => ({ ...prev, transcript: newTranscript }));
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, transcript: newTranscript } : n));
+    try {
+      await api(`notes/${noteId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ transcript: newTranscript }),
+      });
+    } catch (e) {
+      console.error('Failed to update transcript:', e);
+    }
+  }, [editingNote]);
 
   // ===== TODO OPERATIONS =====
   const createTodo = async (text, noteId, tagIds, options = {}) => {
@@ -1390,6 +1429,7 @@ export default function App() {
       setSelectedTagIds([]);
       const noteData = await api(`notes/${noteId}`);
       setSelectedNoteId(noteId);
+      setNoteTab('notes');
       setEditingNote(noteData);
       await loadNotes();
     } catch (e) { console.error('Navigate to note error:', e); }
@@ -1891,6 +1931,7 @@ export default function App() {
                       >
                         <ListTodo size={14} />
                       </button>
+                      <RecordingControls onTranscriptReady={handleTranscriptReady} />
                     </div>
                   </div>
 
@@ -1924,22 +1965,50 @@ export default function App() {
                     </div>
                   )}
 
+                  {/* Tab switcher — only visible when a transcript exists */}
+                  {editingNote.transcript && (
+                    <div className="flex items-center gap-0.5 px-4 py-1.5 border-b flex-shrink-0">
+                      <button
+                        onClick={() => setNoteTab('notes')}
+                        className={`p-1.5 rounded-md transition-colors ${noteTab === 'notes' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                        title="Notes"
+                      >
+                        <Edit3 size={13} />
+                      </button>
+                      <button
+                        onClick={() => setNoteTab('transcript')}
+                        className={`p-1.5 rounded-md transition-colors ${noteTab === 'transcript' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                        title="Transcript"
+                      >
+                        <FileText size={13} />
+                      </button>
+                    </div>
+                  )}
+
                   {/* Editor area */}
                   <div className="flex-1 overflow-y-auto px-4 pt-3 pb-4 min-h-0">
-                    <NoteEditor
-                      key={`note-${editingNote.id}`}
-                      id={editingNote.id}
-                      content={editingNote.content}
-                      onUpdate={(newContent) => {
-                        setEditingNote(prev => ({ ...prev, content: newContent }));
-                        setNotes(prev => prev.map(n => n.id === editingNote.id ? { ...n, content: newContent } : n));
-                        handleNoteContentUpdate(editingNote.id, editingNote.title, newContent, editingNote.tags?.map(t => t.id));
-                      }}
-                      placeholder="Start writing..."
-                      toolbarOpen={editorToolbarOpen}
-                      onToolbarToggle={setEditorToolbarOpen}
-                      projectTags={projectTags}
-                    />
+                    {noteTab === 'transcript' && editingNote.transcript ? (
+                      <TranscriptViewer
+                        key={`transcript-${editingNote.id}`}
+                        transcript={editingNote.transcript}
+                        onChange={handleTranscriptChange}
+                      />
+                    ) : (
+                      <NoteEditor
+                        key={`note-${editingNote.id}`}
+                        id={editingNote.id}
+                        content={editingNote.content}
+                        onUpdate={(newContent) => {
+                          setEditingNote(prev => ({ ...prev, content: newContent }));
+                          setNotes(prev => prev.map(n => n.id === editingNote.id ? { ...n, content: newContent } : n));
+                          handleNoteContentUpdate(editingNote.id, editingNote.title, newContent, editingNote.tags?.map(t => t.id));
+                        }}
+                        placeholder="Start writing..."
+                        toolbarOpen={editorToolbarOpen}
+                        onToolbarToggle={setEditorToolbarOpen}
+                        projectTags={projectTags}
+                      />
+                    )}
                   </div>
 
                   {/* Panel Footer */}
