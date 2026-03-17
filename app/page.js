@@ -1043,7 +1043,16 @@ export default function App() {
     setEditingNote(prev => ({ ...prev, ai_action_items: updated }));
     setNotes(prev => prev.map(n => n.id === noteId ? { ...n, ai_action_items: updated } : n));
     // Create real todo linked to this note
-    await createTodo(item.text, noteId, editingNote.tags?.map(t => t.id) || []);
+    const todo = await createTodo(item.text, noteId, editingNote.tags?.map(t => t.id) || []);
+    if (todo) {
+      toast.success('Added to your To-Do list');
+    } else {
+      toast.error('Could not create to-do item');
+      // Revert claimed state
+      setEditingNote(prev => ({ ...prev, ai_action_items: items }));
+      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, ai_action_items: items } : n));
+      return;
+    }
     // Persist updated ai_action_items
     try {
       await api(`notes/${noteId}`, {
@@ -2122,6 +2131,26 @@ export default function App() {
                                 </div>
                               </div>
                             )}
+                            {/* Linked Todos — todos created from this note's action items */}
+                            {(() => {
+                              const linked = todos.filter(t => t.note_id === editingNote.id);
+                              if (!linked.length) return null;
+                              return (
+                                <div>
+                                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Linked To-Dos</p>
+                                  <div className="space-y-1">
+                                    {linked.map(t => (
+                                      <div key={t.id} className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                                        {t.is_done
+                                          ? <CheckSquare size={13} className="text-primary/50 flex-shrink-0" />
+                                          : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30 flex-shrink-0" />}
+                                        <span className={t.is_done ? 'line-through opacity-50' : ''}>{t.text}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </>
                         )}
                       </div>
