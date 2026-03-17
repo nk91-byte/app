@@ -1005,7 +1005,7 @@ export default function App() {
     }
     // Auto-generate AI summary
     setIsGeneratingSummary(true);
-    toast('Generating AI summary…', { duration: 3000 });
+    toast('Generating AI summary…', { duration: 5000 });
     try {
       const result = await fetch('/api/summarize', {
         method: 'POST',
@@ -1015,16 +1015,18 @@ export default function App() {
       if (!result.ok) throw new Error(await result.text());
       const { summary, action_items } = await result.json();
       const ai_action_items = action_items;
+      // Update local state immediately — show summary even if DB save fails
       setEditingNote(prev => ({ ...prev, summary, ai_action_items }));
       setNotes(prev => prev.map(n => n.id === noteId ? { ...n, summary, ai_action_items } : n));
-      await api(`notes/${noteId}`, {
+      toast.success('AI summary ready');
+      // Persist to DB separately — don't let this failure affect the UI
+      api(`notes/${noteId}`, {
         method: 'PUT',
         body: JSON.stringify({ summary, ai_action_items }),
-      });
-      toast.success('AI summary ready');
+      }).catch(e => console.error('Failed to persist summary to DB:', e));
     } catch (e) {
       console.error('Failed to generate summary:', e);
-      toast.error('Could not generate AI summary');
+      toast.error(`AI summary failed: ${e.message}`);
     } finally {
       setIsGeneratingSummary(false);
     }
