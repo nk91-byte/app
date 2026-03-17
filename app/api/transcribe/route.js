@@ -14,6 +14,10 @@ export async function POST(request) {
       return NextResponse.json({ error: 'No audio file provided' }, { status: 400 });
     }
 
+    if (!ASSEMBLYAI_KEY) {
+      return NextResponse.json({ error: 'ASSEMBLYAI_API_KEY is not configured' }, { status: 500 });
+    }
+
     // Step 1: upload the raw audio bytes to AssemblyAI
     const arrayBuffer = await audioFile.arrayBuffer();
     const uploadRes = await fetch(`${BASE}/upload`, {
