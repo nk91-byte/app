@@ -63,7 +63,7 @@ export default function TranscriptViewer({ transcript, onChange }) {
   }
 
   return (
-    <div className="space-y-4 text-sm">
+    <div className="space-y-2 text-sm">
       {utterances.map((u, index) => (
         <div key={u._key} className="flex gap-3 group">
           {/* Left column: speaker label + timestamp */}
