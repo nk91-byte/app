@@ -1038,31 +1038,38 @@ export default function App() {
     const items = editingNote.ai_action_items || [];
     const item = items.find(i => i.id === itemId);
     if (!item || item.claimed) return;
-    // Mark claimed locally
-    const updated = items.map(i => i.id === itemId ? { ...i, claimed: true } : i);
-    setEditingNote(prev => ({ ...prev, ai_action_items: updated }));
-    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, ai_action_items: updated } : n));
     // Create real todo linked to this note
     const todo = await createTodo(item.text, noteId, editingNote.tags?.map(t => t.id) || []);
-    if (todo) {
-      toast.success('Added to your To-Do list');
-    } else {
+    if (!todo) {
       toast.error('Could not create to-do item');
-      // Revert claimed state
-      setEditingNote(prev => ({ ...prev, ai_action_items: items }));
-      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, ai_action_items: items } : n));
       return;
     }
-    // Persist updated ai_action_items
+    toast.success('Added to your To-Do list');
+    // Mark claimed locally, storing todo_id so we can undo later
+    const updated = items.map(i => i.id === itemId ? { ...i, claimed: true, todo_id: todo.id } : i);
+    setEditingNote(prev => ({ ...prev, ai_action_items: updated }));
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, ai_action_items: updated } : n));
     try {
-      await api(`notes/${noteId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ ai_action_items: updated }),
-      });
-    } catch (e) {
-      console.error('Failed to update ai_action_items:', e);
-    }
+      await api(`notes/${noteId}`, { method: 'PUT', body: JSON.stringify({ ai_action_items: updated }) });
+    } catch (e) { console.error('Failed to update ai_action_items:', e); }
   }, [editingNote]);
+
+  const unclaimAiActionItem = useCallback(async (itemId) => {
+    if (!editingNote) return;
+    const noteId = editingNote.id;
+    const items = editingNote.ai_action_items || [];
+    const item = items.find(i => i.id === itemId);
+    if (!item || !item.claimed) return;
+    // Delete the linked todo if we have its id
+    if (item.todo_id) await deleteTodo(item.todo_id);
+    // Reset to unclaimed
+    const updated = items.map(i => i.id === itemId ? { ...i, claimed: false, todo_id: null } : i);
+    setEditingNote(prev => ({ ...prev, ai_action_items: updated }));
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, ai_action_items: updated } : n));
+    try {
+      await api(`notes/${noteId}`, { method: 'PUT', body: JSON.stringify({ ai_action_items: updated }) });
+    } catch (e) { console.error('Failed to update ai_action_items:', e); }
+  }, [editingNote, deleteTodo]);
 
   const handleTranscriptChange = useCallback(async (newTranscript) => {
     if (!editingNote) return;
@@ -2103,31 +2110,47 @@ export default function App() {
                               <div>
                                 <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">AI Action Items</p>
                                 <div className="space-y-1.5">
-                                  {editingNote.ai_action_items.map(item => (
-                                    <div
-                                      key={item.id}
-                                      className={`flex items-center gap-2 text-[13px] leading-tight rounded-md px-2 py-1.5 transition-colors ${item.claimed ? 'opacity-50' : 'hover:bg-muted/50'}`}
-                                    >
-                                      <span className="flex-shrink-0">
-                                        {item.claimed
-                                          ? <CheckSquare size={13} className="text-primary/50" />
-                                          : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30" />}
-                                      </span>
-                                      <span className={`flex-1 ${item.claimed ? 'line-through text-muted-foreground' : 'text-muted-foreground'}`}>
-                                        {item.text}
-                                        {item.speaker && <span className="ml-1.5 text-[11px] text-muted-foreground/60">— {item.speaker}</span>}
-                                      </span>
-                                      {!item.claimed && (
-                                        <button
-                                          onClick={() => claimAiActionItem(item.id)}
-                                          className="flex-shrink-0 text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium"
-                                          title="Add to your To-Do list"
-                                        >
-                                          + Add
-                                        </button>
-                                      )}
-                                    </div>
-                                  ))}
+                                  {editingNote.ai_action_items.map(item => {
+                                    const linkedTodo = item.todo_id ? todos.find(t => t.id === item.todo_id) : null;
+                                    const isDone = linkedTodo?.is_done;
+                                    // 3 states: not added (grey) | added+open (dark) | done (strikethrough)
+                                    return (
+                                      <div
+                                        key={item.id}
+                                        className="flex items-center gap-2 text-[13px] leading-tight rounded-md px-2 py-1.5 transition-colors hover:bg-muted/30"
+                                      >
+                                        <span className="flex-shrink-0">
+                                          {isDone
+                                            ? <CheckSquare size={13} className="text-primary/50" />
+                                            : item.claimed
+                                              ? <CheckSquare size={13} className="text-primary" />
+                                              : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30" />}
+                                        </span>
+                                        <span className={`flex-1 ${isDone ? 'line-through text-muted-foreground/50' : item.claimed ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                          {item.text}
+                                          {item.speaker && <span className="ml-1.5 text-[11px] text-muted-foreground/50">— {item.speaker}</span>}
+                                        </span>
+                                        {!item.claimed && (
+                                          <button
+                                            onClick={() => claimAiActionItem(item.id)}
+                                            className="flex-shrink-0 text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium"
+                                            title="Add to your To-Do list"
+                                          >
+                                            + Add
+                                          </button>
+                                        )}
+                                        {item.claimed && !isDone && (
+                                          <button
+                                            onClick={() => unclaimAiActionItem(item.id)}
+                                            className="flex-shrink-0 text-[11px] px-1.5 py-0.5 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                                            title="Remove from To-Do list"
+                                          >
+                                            Undo
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             )}
