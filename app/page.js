@@ -504,6 +504,7 @@ export default function App() {
   const [projectTags, setProjectTags] = useState([]);
   const [selectedNoteId, setSelectedNoteId] = useState(null);
   const [noteTab, setNoteTab] = useState('notes'); // 'notes' | 'transcript'
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState([]);
   const [todoFilters, setTodoFilters] = useState(['open']);
@@ -991,7 +992,7 @@ export default function App() {
     setEditingNote(prev => ({ ...prev, transcript, transcript_status: 'done' }));
     setNotes(prev => prev.map(n => n.id === noteId ? { ...n, transcript, transcript_status: 'done' } : n));
     setNoteTab('transcript');
-    // Persist to DB
+    // Persist transcript to DB
     try {
       await api(`notes/${noteId}`, {
         method: 'PUT',
@@ -1000,6 +1001,54 @@ export default function App() {
     } catch (e) {
       console.error('Failed to save transcript:', e);
       toast.error('Could not save transcript');
+    }
+    // Auto-generate AI summary
+    setIsGeneratingSummary(true);
+    try {
+      const result = await fetch('/api/summarize', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ transcript }),
+      });
+      if (!result.ok) throw new Error(await result.text());
+      const { summary, action_items } = await result.json();
+      const ai_action_items = action_items;
+      setEditingNote(prev => ({ ...prev, summary, ai_action_items }));
+      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, summary, ai_action_items } : n));
+      await api(`notes/${noteId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ summary, ai_action_items }),
+      });
+      setNoteTab('notes');
+      toast.success('AI summary ready');
+    } catch (e) {
+      console.error('Failed to generate summary:', e);
+      toast.error('Could not generate AI summary');
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  }, [editingNote]);
+
+  const claimAiActionItem = useCallback(async (itemId) => {
+    if (!editingNote) return;
+    const noteId = editingNote.id;
+    const items = editingNote.ai_action_items || [];
+    const item = items.find(i => i.id === itemId);
+    if (!item || item.claimed) return;
+    // Mark claimed locally
+    const updated = items.map(i => i.id === itemId ? { ...i, claimed: true } : i);
+    setEditingNote(prev => ({ ...prev, ai_action_items: updated }));
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, ai_action_items: updated } : n));
+    // Create real todo linked to this note
+    await createTodo(item.text, noteId, editingNote.tags?.map(t => t.id) || []);
+    // Persist updated ai_action_items
+    try {
+      await api(`notes/${noteId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ ai_action_items: updated }),
+      });
+    } catch (e) {
+      console.error('Failed to update ai_action_items:', e);
     }
   }, [editingNote]);
 
@@ -2008,6 +2057,52 @@ export default function App() {
                         onToolbarToggle={setEditorToolbarOpen}
                         projectTags={projectTags}
                       />
+                    )}
+
+                    {/* AI Summary & Action Items — shown in notes tab when summary exists or is generating */}
+                    {noteTab === 'notes' && (isGeneratingSummary || editingNote.summary || editingNote.ai_action_items?.length > 0) && (
+                      <div className="mt-6 border-t pt-4 space-y-4">
+                        {isGeneratingSummary ? (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Loader2 size={12} className="animate-spin" />
+                            Generating AI summary…
+                          </div>
+                        ) : (
+                          <>
+                            {editingNote.summary && (
+                              <div>
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">AI Summary</p>
+                                <p className="text-sm text-foreground/80 leading-relaxed">{editingNote.summary}</p>
+                              </div>
+                            )}
+                            {editingNote.ai_action_items?.length > 0 && (
+                              <div>
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">AI Action Items</p>
+                                <div className="space-y-1.5">
+                                  {editingNote.ai_action_items.map(item => (
+                                    <div
+                                      key={item.id}
+                                      className={`flex items-start gap-2 text-[13px] leading-tight rounded-md px-2 py-1.5 transition-colors ${item.claimed ? 'opacity-50' : 'hover:bg-muted/50 cursor-pointer'}`}
+                                      onClick={() => !item.claimed && claimAiActionItem(item.id)}
+                                      title={item.claimed ? 'Already added to your actions' : 'Click to add to your action items'}
+                                    >
+                                      <span className="mt-0.5 flex-shrink-0">
+                                        {item.claimed
+                                          ? <CheckSquare size={13} className="text-primary/50" />
+                                          : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30" />}
+                                      </span>
+                                      <span className={`flex-1 ${item.claimed ? 'line-through text-muted-foreground' : 'text-muted-foreground'}`}>
+                                        {item.text}
+                                        {item.speaker && <span className="ml-1.5 text-[11px] text-muted-foreground/60">— {item.speaker}</span>}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
                     )}
                   </div>
 
