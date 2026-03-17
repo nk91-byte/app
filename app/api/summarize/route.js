@@ -21,7 +21,7 @@ export async function POST(request) {
       .map(u => `${u.speaker}: ${u.text}`)
       .join('\n');
 
-    const response = await client.messages.create({
+    const params = {
       model: 'claude-opus-4-6',
       max_tokens: 2048,
       system: `You are a meeting assistant. Analyze meeting transcripts and extract structured information.
@@ -49,14 +49,31 @@ Transcript:
 ${transcriptText}`,
         },
       ],
-    });
+    };
+
+    // Retry up to 3 times on 529 overloaded errors (with 10s delay between attempts)
+    let response;
+    let lastError;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        response = await client.messages.create(params);
+        break; // success — exit retry loop
+      } catch (err) {
+        lastError = err;
+        const isOverloaded = err?.status === 529 || err?.message?.includes('overloaded');
+        if (isOverloaded && attempt < 3) {
+          await new Promise(r => setTimeout(r, 10000 * attempt)); // 10s, 20s
+          continue;
+        }
+        throw err; // non-529 error or last attempt — give up
+      }
+    }
 
     const raw = response.content[0].text.trim();
     let parsed;
     try {
       parsed = JSON.parse(raw);
     } catch {
-      // Try to extract JSON if Claude wrapped it
       const match = raw.match(/\{[\s\S]*\}/);
       if (match) parsed = JSON.parse(match[0]);
       else throw new Error('Could not parse Claude response as JSON');
