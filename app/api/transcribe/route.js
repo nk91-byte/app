@@ -7,36 +7,19 @@ const BASE = 'https://api.assemblyai.com/v2';
 // Returns: { transcript_id }
 export async function POST(request) {
   try {
-    const formData = await request.formData();
-    const audioFile = formData.get('audio');
-
-    if (!audioFile) {
-      return NextResponse.json({ error: 'No audio file provided' }, { status: 400 });
-    }
-
     if (!ASSEMBLYAI_KEY) {
       return NextResponse.json({ error: 'ASSEMBLYAI_API_KEY is not configured' }, { status: 500 });
     }
 
-    // Step 1: upload the raw audio bytes to AssemblyAI
-    const arrayBuffer = await audioFile.arrayBuffer();
-    const uploadRes = await fetch(`${BASE}/upload`, {
-      method: 'POST',
-      headers: {
-        authorization: ASSEMBLYAI_KEY,
-        'content-type': 'application/octet-stream',
-      },
-      body: arrayBuffer,
-    });
+    // Accept JSON { upload_url } — client uploaded directly to AssemblyAI to bypass Vercel's 4.5MB limit
+    const body = await request.json().catch(() => null);
+    const upload_url = body?.upload_url;
 
-    if (!uploadRes.ok) {
-      const text = await uploadRes.text();
-      throw new Error(`AssemblyAI upload failed (${uploadRes.status}): ${text}`);
+    if (!upload_url) {
+      return NextResponse.json({ error: 'Missing upload_url' }, { status: 400 });
     }
 
-    const { upload_url } = await uploadRes.json();
-
-    // Step 2: submit the transcription job with speaker diarization
+    // Submit the transcription job with speaker diarization
     const transcribeRes = await fetch(`${BASE}/transcript`, {
       method: 'POST',
       headers: {

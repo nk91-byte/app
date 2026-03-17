@@ -11,15 +11,31 @@ function formatTime(seconds) {
   return `${m}:${s}`;
 }
 
-async function submitAndPoll(blob, onTranscriptReady, setStatus, setError) {
-  // Upload to AssemblyAI via server route
-  const formData = new FormData();
-  formData.append('audio', blob, 'recording.webm');
+async function submitAndPoll(blob) {
+  // Step 1: Upload audio directly from browser to AssemblyAI (bypasses Vercel's 4.5MB limit)
+  const uploadRes = await fetch('https://api.assemblyai.com/v2/upload', {
+    method: 'POST',
+    headers: {
+      authorization: process.env.NEXT_PUBLIC_ASSEMBLYAI_API_KEY,
+      'content-type': 'application/octet-stream',
+    },
+    body: blob,
+  });
+  if (!uploadRes.ok) {
+    const text = await uploadRes.text();
+    throw new Error(`Upload failed (${uploadRes.status}): ${text}`);
+  }
+  const { upload_url } = await uploadRes.json();
 
-  const submitRes = await fetch('/api/transcribe', { method: 'POST', body: formData });
+  // Step 2: Submit transcription job via our server (keeps job-submission logic server-side)
+  const submitRes = await fetch('/api/transcribe', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ upload_url }),
+  });
   if (!submitRes.ok) {
     const err = await submitRes.json().catch(() => ({}));
-    throw new Error(err.error || 'Failed to upload recording');
+    throw new Error(err.error || 'Failed to submit transcription job');
   }
   const { transcript_id } = await submitRes.json();
 
