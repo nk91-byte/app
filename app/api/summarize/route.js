@@ -22,7 +22,7 @@ export async function POST(request) {
       .join('\n');
 
     const params = {
-      model: 'claude-opus-4-6',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2048,
       system: `You are a meeting assistant. Analyze meeting transcripts and extract structured information.
 Always respond with valid JSON only — no markdown, no explanation, just the JSON object.`,
