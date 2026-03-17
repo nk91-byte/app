@@ -1060,8 +1060,13 @@ export default function App() {
     const items = editingNote.ai_action_items || [];
     const item = items.find(i => i.id === itemId);
     if (!item || !item.claimed) return;
-    // Delete the linked todo if we have its id
-    if (item.todo_id) await deleteTodo(item.todo_id);
+    // Delete the linked todo if we have its id (inline to avoid dependency ordering issues)
+    if (item.todo_id) {
+      try {
+        await api(`todos/${item.todo_id}`, { method: 'DELETE' });
+        setTodos(prev => prev.filter(t => t.id !== item.todo_id));
+      } catch (e) { console.error('Failed to delete todo:', e); }
+    }
     // Reset to unclaimed
     const updated = items.map(i => i.id === itemId ? { ...i, claimed: false, todo_id: null } : i);
     setEditingNote(prev => ({ ...prev, ai_action_items: updated }));
@@ -1069,7 +1074,7 @@ export default function App() {
     try {
       await api(`notes/${noteId}`, { method: 'PUT', body: JSON.stringify({ ai_action_items: updated }) });
     } catch (e) { console.error('Failed to update ai_action_items:', e); }
-  }, [editingNote, deleteTodo]);
+  }, [editingNote]);
 
   const handleTranscriptChange = useCallback(async (newTranscript) => {
     if (!editingNote) return;
