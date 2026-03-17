@@ -31,14 +31,16 @@ Always respond with valid JSON only — no markdown, no explanation, just the JS
           role: 'user',
           content: `Analyze this meeting transcript and return a JSON object with exactly this structure:
 {
-  "summary": "2-4 sentence summary of the key topics discussed and decisions made",
+  "sections": [
+    { "title": "Section Title", "points": ["bullet point 1", "bullet point 2"] }
+  ],
   "action_items": [
     { "id": "1", "text": "action item description", "speaker": "Speaker A" }
   ]
 }
 
 Rules:
-- summary: concise, decision-focused, 2-4 sentences
+- sections: 2-4 thematic sections covering the key topics, decisions, and context. Each section has a short descriptive title and 2-5 concise bullet points. Group related content together logically.
 - action_items: only concrete commitments or tasks mentioned, with the speaker who committed to it
 - If no clear action items exist, return an empty array
 - Use the speaker labels from the transcript (e.g. "Speaker A", "Speaker B")
@@ -61,7 +63,7 @@ ${transcriptText}`,
     }
 
     return NextResponse.json({
-      summary: parsed.summary || '',
+      sections: (parsed.sections || []).map(s => ({ title: s.title, points: s.points || [] })),
       action_items: (parsed.action_items || []).map((item, i) => ({
         id: item.id || String(i + 1),
         text: item.text,

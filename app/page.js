@@ -1013,16 +1013,16 @@ export default function App() {
         body: JSON.stringify({ transcript }),
       });
       if (!result.ok) throw new Error(await result.text());
-      const { summary, action_items } = await result.json();
+      const { sections, action_items } = await result.json();
       const ai_action_items = action_items;
       // Update local state immediately — show summary even if DB save fails
-      setEditingNote(prev => ({ ...prev, summary, ai_action_items }));
-      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, summary, ai_action_items } : n));
+      setEditingNote(prev => ({ ...prev, summary: sections, ai_action_items }));
+      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, summary: sections, ai_action_items } : n));
       toast.success('AI summary ready');
       // Persist to DB separately — don't let this failure affect the UI
       api(`notes/${noteId}`, {
         method: 'PUT',
-        body: JSON.stringify({ summary, ai_action_items }),
+        body: JSON.stringify({ summary: sections, ai_action_items }),
       }).catch(e => console.error('Failed to persist summary to DB:', e));
     } catch (e) {
       console.error('Failed to generate summary:', e);
@@ -2063,7 +2063,7 @@ export default function App() {
                     )}
 
                     {/* AI Summary & Action Items — shown in notes tab when summary exists or is generating */}
-                    {noteTab === 'notes' && (isGeneratingSummary || editingNote.summary || editingNote.ai_action_items?.length > 0) && (
+                    {noteTab === 'notes' && (isGeneratingSummary || (Array.isArray(editingNote.summary) && editingNote.summary.length > 0) || editingNote.ai_action_items?.length > 0) && (
                       <div className="mt-6 border-t pt-4 space-y-4">
                         {isGeneratingSummary ? (
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -2072,10 +2072,22 @@ export default function App() {
                           </div>
                         ) : (
                           <>
-                            {editingNote.summary && (
-                              <div>
-                                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">AI Summary</p>
-                                <p className="text-sm text-foreground/80 leading-relaxed">{editingNote.summary}</p>
+                            {Array.isArray(editingNote.summary) && editingNote.summary.length > 0 && (
+                              <div className="space-y-3">
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">AI Summary</p>
+                                {editingNote.summary.map((section, si) => (
+                                  <div key={si}>
+                                    <p className="text-[12px] font-semibold text-foreground/90 mb-1">{section.title}</p>
+                                    <ul className="space-y-0.5">
+                                      {section.points.map((point, pi) => (
+                                        <li key={pi} className="flex gap-2 text-[13px] text-foreground/75 leading-snug">
+                                          <span className="mt-1.5 w-1 h-1 rounded-full bg-muted-foreground/40 flex-shrink-0" />
+                                          {point}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                ))}
                               </div>
                             )}
                             {editingNote.ai_action_items?.length > 0 && (
@@ -2085,11 +2097,9 @@ export default function App() {
                                   {editingNote.ai_action_items.map(item => (
                                     <div
                                       key={item.id}
-                                      className={`flex items-start gap-2 text-[13px] leading-tight rounded-md px-2 py-1.5 transition-colors ${item.claimed ? 'opacity-50' : 'hover:bg-muted/50 cursor-pointer'}`}
-                                      onClick={() => !item.claimed && claimAiActionItem(item.id)}
-                                      title={item.claimed ? 'Already added to your actions' : 'Click to add to your action items'}
+                                      className={`flex items-center gap-2 text-[13px] leading-tight rounded-md px-2 py-1.5 transition-colors ${item.claimed ? 'opacity-50' : 'hover:bg-muted/50'}`}
                                     >
-                                      <span className="mt-0.5 flex-shrink-0">
+                                      <span className="flex-shrink-0">
                                         {item.claimed
                                           ? <CheckSquare size={13} className="text-primary/50" />
                                           : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30" />}
@@ -2098,6 +2108,15 @@ export default function App() {
                                         {item.text}
                                         {item.speaker && <span className="ml-1.5 text-[11px] text-muted-foreground/60">— {item.speaker}</span>}
                                       </span>
+                                      {!item.claimed && (
+                                        <button
+                                          onClick={() => claimAiActionItem(item.id)}
+                                          className="flex-shrink-0 text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium"
+                                          title="Add to your To-Do list"
+                                        >
+                                          + Add
+                                        </button>
+                                      )}
                                     </div>
                                   ))}
                                 </div>
