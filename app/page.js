@@ -991,7 +991,8 @@ export default function App() {
     // Optimistic local update
     setEditingNote(prev => ({ ...prev, transcript, transcript_status: 'done' }));
     setNotes(prev => prev.map(n => n.id === noteId ? { ...n, transcript, transcript_status: 'done' } : n));
-    setNoteTab('transcript');
+    // Stay on notes tab so the summary spinner is visible
+    setNoteTab('notes');
     // Persist transcript to DB
     try {
       await api(`notes/${noteId}`, {
@@ -1004,6 +1005,7 @@ export default function App() {
     }
     // Auto-generate AI summary
     setIsGeneratingSummary(true);
+    toast('Generating AI summary…', { duration: 3000 });
     try {
       const result = await fetch('/api/summarize', {
         method: 'POST',
@@ -1019,7 +1021,6 @@ export default function App() {
         method: 'PUT',
         body: JSON.stringify({ summary, ai_action_items }),
       });
-      setNoteTab('notes');
       toast.success('AI summary ready');
     } catch (e) {
       console.error('Failed to generate summary:', e);
