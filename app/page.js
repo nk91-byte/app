@@ -1046,8 +1046,9 @@ export default function App() {
         toast.error('Failed to save summary. Please try again.');
         return;
       }
-      setEditingNote(prev => prev?.id === noteId ? { ...saved, content: prev.content, title: prev.title } : prev);
-      setNotes(prev => prev.map(n => n.id === noteId ? { ...saved, content: n.content, title: n.title } : n));
+      // Use sections/action_items (actual arrays) for display — saved provides all other DB fields
+      setEditingNote(prev => prev?.id === noteId ? { ...saved, summary: sections, ai_action_items: action_items, content: prev.content, title: prev.title } : prev);
+      setNotes(prev => prev.map(n => n.id === noteId ? { ...saved, summary: sections, ai_action_items: action_items, content: n.content, title: n.title } : n));
       toast.success('AI summary ready');
     } catch (e) {
       console.error('Failed to generate summary:', e);
