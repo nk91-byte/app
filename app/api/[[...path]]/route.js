@@ -448,7 +448,7 @@ async function getTodos(supabase, searchParams, ownerId) {
 }
 
 async function createTodo(supabase, body, ownerId) {
-  const { text, content, note_id, parent_todo_id, position, tag_ids, due_date } = body;
+  const { text, content, note_id, parent_todo_id, position, tag_ids, due_date, skip_content_update } = body;
   const id = uuidv4();
   const timestamp = now();
 
@@ -463,7 +463,10 @@ async function createTodo(supabase, body, ownerId) {
     await supabase.from('todo_tags').insert(tag_ids.map(tagId => ({ todo_id: id, tag_id: tagId })));
   }
 
-  if (note_id) {
+  // skip_content_update: used for AI-claimed todos which are tracked in ai_action_items,
+  // not in the editor content. Inserting into content would cause saveNote to archive the
+  // todo when it syncs back the old editor state (which doesn't know about the new checkbox).
+  if (note_id && !skip_content_update) {
     const { data: note } = await supabase.from('notes').select('*').eq('id', note_id).single();
     if (note) {
       const updatedContent = insertTaskItemIntoContent(note.content || { type: 'doc', content: [] }, id, text || '');

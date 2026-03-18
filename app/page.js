@@ -1082,8 +1082,11 @@ export default function App() {
     const items = editingNote.ai_action_items || [];
     const item = items.find(i => i.id === itemId);
     if (!item || item.claimed) return;
-    // Create real todo linked to this note — skip loadNotes to avoid overwriting unsaved AI state
-    const todo = await createTodo(item.text, noteId, editingNote.tags?.map(t => t.id) || [], { skipNoteReload: true });
+    // Create real todo linked to this note.
+    // skipContentUpdate: AI-claimed todos are tracked in ai_action_items, not in editor content.
+    // Without this flag the server inserts a checkbox into the note, but editingNote.content
+    // doesn't know about it, so the next saveNote would archive the todo immediately.
+    const todo = await createTodo(item.text, noteId, editingNote.tags?.map(t => t.id) || [], { skipNoteReload: true, skipContentUpdate: true });
     // Even if todo response is missing (network hiccup), the todo was likely created in DB.
     // Mark claimed regardless and store the id if we have it.
     toast.success('Added to your To-Do list');
@@ -1147,7 +1150,7 @@ export default function App() {
 
       const todo = await api('todos', {
         method: 'POST',
-        body: JSON.stringify({ text, note_id: noteId || null, tag_ids: tagIds || [], position, due_date: options.due_date || null, content: options.content || null }),
+        body: JSON.stringify({ text, note_id: noteId || null, tag_ids: tagIds || [], position, due_date: options.due_date || null, content: options.content || null, skip_content_update: options.skipContentUpdate || false }),
       });
       setTodos(prev => [...prev, todo]);
       setNewTodoText('');
