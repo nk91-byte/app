@@ -46,13 +46,30 @@ export async function POST(request) {
   }
 }
 
-// GET: poll the status of a transcription job
-// Query param: id (the transcript_id from POST)
-// Returns: { status: 'queued'|'processing'|'completed'|'error', transcript?, error? }
+// GET: poll the status of a transcription job, OR list recent transcripts
+// Query params:
+//   id  — poll a specific transcript by ID
+//   list=true — return up to 25 recent completed transcripts for the account
+// Returns: { status, transcript? } or { transcripts: [{id, created, preview}] }
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const transcriptId = searchParams.get('id');
+
+    // List mode: return recent completed transcripts (no id param needed)
+    if (searchParams.get('list') === 'true') {
+      const res = await fetch(`${BASE}/transcript?limit=25&status=completed`, {
+        headers: { authorization: ASSEMBLYAI_KEY },
+      });
+      if (!res.ok) throw new Error(`AssemblyAI list failed (${res.status})`);
+      const data = await res.json();
+      const transcripts = (data.transcripts || []).map((t) => ({
+        id: t.id,
+        created: t.created, // ISO timestamp
+        preview: t.text ? t.text.slice(0, 120) : '(no text)',
+      }));
+      return NextResponse.json({ transcripts });
+    }
 
     if (!transcriptId) {
       return NextResponse.json({ error: 'Missing transcript id' }, { status: 400 });

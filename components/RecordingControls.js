@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, Square, Pause, Play, Loader2, AlertCircle, RotateCcw, Upload } from 'lucide-react';
+import { Mic, Square, Pause, Play, Loader2, AlertCircle, RotateCcw, Upload, History } from 'lucide-react';
 import { useRecorder } from '@/hooks/useRecorder';
 import { toast } from 'sonner';
 import { saveAudio, getAudio, deleteAudio } from '@/lib/audioStore';
@@ -63,6 +63,9 @@ export default function RecordingControls({ noteId, onTranscriptReady }) {
   const [error, setError] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [hasSavedAudio, setHasSavedAudio] = useState(false);
+  const [showPastTranscripts, setShowPastTranscripts] = useState(false);
+  const [pastTranscripts, setPastTranscripts] = useState(null); // null = not loaded
+  const [loadingPast, setLoadingPast] = useState(false);
   const timerRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -156,6 +159,43 @@ export default function RecordingControls({ noteId, onTranscriptReady }) {
     setError(null);
     await runTranscription(file);
   }, [runTranscription]);
+
+  const handleOpenPastTranscripts = useCallback(async () => {
+    setShowMenu(false);
+    setShowPastTranscripts(true);
+    if (pastTranscripts !== null) return; // already loaded
+    setLoadingPast(true);
+    try {
+      const res = await fetch('/api/transcribe?list=true');
+      const data = await res.json();
+      setPastTranscripts(data.transcripts || []);
+    } catch {
+      setPastTranscripts([]);
+      toast.error('Could not load past transcripts');
+    } finally {
+      setLoadingPast(false);
+    }
+  }, [pastTranscripts]);
+
+  const handleSelectPastTranscript = useCallback(async (transcriptId) => {
+    setShowPastTranscripts(false);
+    setStatus('transcribing');
+    setError(null);
+    try {
+      const res = await fetch(`/api/transcribe?id=${transcriptId}`);
+      const data = await res.json();
+      if (data.status === 'completed' && data.transcript) {
+        setStatus('idle');
+        onTranscriptReady(data.transcript);
+        toast.success('Transcript loaded');
+      } else {
+        throw new Error(data.error || 'Transcript not available');
+      }
+    } catch (err) {
+      setStatus('error');
+      setError(err.message);
+    }
+  }, [onTranscriptReady]);
 
   // ── Error ──────────────────────────────────────────────────────────────────
   if (status === 'error') {
@@ -267,6 +307,39 @@ export default function RecordingControls({ noteId, onTranscriptReady }) {
               <Upload size={12} className="flex-shrink-0" />
               Upload audio / video file
             </button>
+            <button onClick={handleOpenPastTranscripts} className="w-full text-left px-3 py-1.5 hover:bg-muted transition-colors flex items-center gap-2">
+              <History size={12} className="flex-shrink-0" />
+              Use past transcript
+            </button>
+          </div>
+        </>
+      )}
+
+      {showPastTranscripts && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setShowPastTranscripts(false)} />
+          <div className="absolute right-0 top-7 z-50 bg-popover border rounded-lg shadow-lg py-1 w-72 text-xs max-h-64 overflow-y-auto">
+            <div className="px-3 py-1.5 font-medium text-muted-foreground border-b">Past transcripts (last 25)</div>
+            {loadingPast && (
+              <div className="flex items-center gap-2 px-3 py-2 text-muted-foreground">
+                <Loader2 size={12} className="animate-spin" /> Loading…
+              </div>
+            )}
+            {!loadingPast && pastTranscripts?.length === 0 && (
+              <div className="px-3 py-2 text-muted-foreground">No completed transcripts found</div>
+            )}
+            {!loadingPast && pastTranscripts?.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => handleSelectPastTranscript(t.id)}
+                className="w-full text-left px-3 py-2 hover:bg-muted transition-colors border-b last:border-0"
+              >
+                <div className="text-[10px] text-muted-foreground mb-0.5">
+                  {new Date(t.created).toLocaleString()}
+                </div>
+                <div className="truncate">{t.preview}</div>
+              </button>
+            ))}
           </div>
         </>
       )}
