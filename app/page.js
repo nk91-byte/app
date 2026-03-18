@@ -30,6 +30,7 @@ import TagsManagement from '@/components/TagsManagement';
 import QuickAddModal from '@/components/QuickAddModal';
 import RecordingControls from '@/components/RecordingControls';
 import TranscriptViewer from '@/components/TranscriptViewer';
+import { cleanupOldAudio } from '@/lib/audioStore';
 import { toast } from 'sonner';
 
 class ErrorBoundary extends React.Component {
@@ -791,6 +792,7 @@ export default function App() {
     async function init() {
       try {
         setDbReady(true);
+        cleanupOldAudio().catch(() => {}); // remove stale audio blobs older than 7 days
         await Promise.all([loadNotes(), loadTodos(), loadSourceTags(), loadProjectTags(), loadPreferences()]);
       } catch (e) {
         console.error('Init error:', e);
@@ -1024,6 +1026,33 @@ export default function App() {
         method: 'PUT',
         body: JSON.stringify({ summary: sections, ai_action_items }),
       }).catch(e => console.error('Failed to persist summary to DB:', e));
+    } catch (e) {
+      console.error('Failed to generate summary:', e);
+      toast.error(`AI summary failed: ${e.message}`);
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  }, [editingNote]);
+
+  const retrySummary = useCallback(async () => {
+    if (!editingNote?.transcript) return;
+    const noteId = editingNote.id;
+    const transcript = editingNote.transcript;
+    setIsGeneratingSummary(true);
+    toast('Generating AI summary…', { duration: 5000 });
+    try {
+      const result = await fetch('/api/summarize', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ transcript }),
+      });
+      if (!result.ok) throw new Error(await result.text());
+      const { sections, action_items } = await result.json();
+      setEditingNote(prev => ({ ...prev, summary: sections, ai_action_items: action_items }));
+      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, summary: sections, ai_action_items: action_items } : n));
+      toast.success('AI summary ready');
+      api(`notes/${noteId}`, { method: 'PUT', body: JSON.stringify({ summary: sections, ai_action_items: action_items }) })
+        .catch(e => console.error('Failed to persist summary:', e));
     } catch (e) {
       console.error('Failed to generate summary:', e);
       toast.error(`AI summary failed: ${e.message}`);
@@ -2004,7 +2033,7 @@ export default function App() {
                       >
                         <ListTodo size={14} />
                       </button>
-                      <RecordingControls onTranscriptReady={handleTranscriptReady} />
+                      <RecordingControls noteId={editingNote?.id} onTranscriptReady={handleTranscriptReady} />
                     </div>
                   </div>
 
@@ -2081,6 +2110,19 @@ export default function App() {
                         onToolbarToggle={setEditorToolbarOpen}
                         projectTags={projectTags}
                       />
+                    )}
+
+                    {/* Retry Summary button — shown when transcript exists but summary failed/missing */}
+                    {noteTab === 'notes' && !isGeneratingSummary && editingNote.transcript?.utterances?.length > 0 && !(Array.isArray(editingNote.summary) && editingNote.summary.length > 0) && (
+                      <div className="mt-4">
+                        <button
+                          onClick={retrySummary}
+                          className="text-[11px] px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium flex items-center gap-1.5"
+                        >
+                          <Loader2 size={11} className="hidden" />
+                          Generate AI summary
+                        </button>
+                      </div>
                     )}
 
                     {/* AI Summary & Action Items — shown in notes tab when summary exists or is generating */}
