@@ -25,7 +25,7 @@ export async function POST(request) {
       model: 'claude-sonnet-4-6',
       max_tokens: 4096,
       system: `You are a meeting assistant. Analyze meeting transcripts and extract structured information.
-Always respond with valid JSON only — no markdown, no explanation, just the JSON object.`,
+CRITICAL: Respond with ONLY a raw JSON object. No markdown code fences, no backticks, no explanation — start your response with { and end with }.`,
       messages: [
         {
           role: 'user',
@@ -44,12 +44,11 @@ Rules:
 - action_items: only concrete commitments or tasks mentioned, with the speaker who committed to it
 - If no clear action items exist, return an empty array
 - Use the speaker labels from the transcript (e.g. "Speaker A", "Speaker B")
+- Output raw JSON only — no markdown fences, no backticks, no preamble
 
 Transcript:
 ${transcriptText}`,
         },
-        // Assistant prefill forces Claude to start directly with { — prevents markdown fences or preamble
-        { role: 'assistant', content: '{' },
       ],
     };
 
@@ -71,8 +70,10 @@ ${transcriptText}`,
       }
     }
 
-    // Prepend the prefill character '{' since the assistant turn started with it
-    const raw = ('{' + response.content[0].text).trim();
+    // Strip markdown fences if model wrapped output anyway (e.g. ```json ... ```)
+    let raw = response.content[0].text.trim();
+    const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fenceMatch) raw = fenceMatch[1].trim();
 
     // Sanitize: fix literal control characters inside JSON strings
     // Only replaces chars inside quoted strings to avoid breaking whitespace between tokens
