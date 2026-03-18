@@ -166,35 +166,25 @@ export default function RecordingControls({ noteId, onTranscriptReady }) {
     if (pastTranscripts !== null) return; // already loaded
     setLoadingPast(true);
     try {
-      const res = await fetch('/api/transcribe?list=true');
+      const res = await fetch('/api/notes?has_transcript=true&limit=25');
       const data = await res.json();
-      setPastTranscripts(data.transcripts || []);
+      // Exclude current note; keep only notes with utterances
+      const notes = (data.data || []).filter(n =>
+        n.id !== noteId && n.transcript?.utterances?.length > 0
+      );
+      setPastTranscripts(notes);
     } catch {
       setPastTranscripts([]);
       toast.error('Could not load past transcripts');
     } finally {
       setLoadingPast(false);
     }
-  }, [pastTranscripts]);
+  }, [pastTranscripts, noteId]);
 
-  const handleSelectPastTranscript = useCallback(async (transcriptId) => {
+  const handleSelectPastTranscript = useCallback((note) => {
     setShowPastTranscripts(false);
-    setStatus('transcribing');
-    setError(null);
-    try {
-      const res = await fetch(`/api/transcribe?id=${transcriptId}`);
-      const data = await res.json();
-      if (data.status === 'completed' && data.transcript) {
-        setStatus('idle');
-        onTranscriptReady(data.transcript);
-        toast.success('Transcript loaded');
-      } else {
-        throw new Error(data.error || 'Transcript not available');
-      }
-    } catch (err) {
-      setStatus('error');
-      setError(err.message);
-    }
+    onTranscriptReady(note.transcript);
+    toast.success('Transcript loaded');
   }, [onTranscriptReady]);
 
   // ── Error ──────────────────────────────────────────────────────────────────
@@ -319,25 +309,25 @@ export default function RecordingControls({ noteId, onTranscriptReady }) {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowPastTranscripts(false)} />
           <div className="absolute right-0 top-7 z-50 bg-popover border rounded-lg shadow-lg py-1 w-72 text-xs max-h-64 overflow-y-auto">
-            <div className="px-3 py-1.5 font-medium text-muted-foreground border-b">Past transcripts (last 25)</div>
+            <div className="px-3 py-1.5 font-medium text-muted-foreground border-b">Past transcripts</div>
             {loadingPast && (
               <div className="flex items-center gap-2 px-3 py-2 text-muted-foreground">
                 <Loader2 size={12} className="animate-spin" /> Loading…
               </div>
             )}
             {!loadingPast && pastTranscripts?.length === 0 && (
-              <div className="px-3 py-2 text-muted-foreground">No completed transcripts found</div>
+              <div className="px-3 py-2 text-muted-foreground">No past transcripts found</div>
             )}
-            {!loadingPast && pastTranscripts?.map((t) => (
+            {!loadingPast && pastTranscripts?.map((note) => (
               <button
-                key={t.id}
-                onClick={() => handleSelectPastTranscript(t.id)}
+                key={note.id}
+                onClick={() => handleSelectPastTranscript(note)}
                 className="w-full text-left px-3 py-2 hover:bg-muted transition-colors border-b last:border-0"
               >
-                <div className="text-[10px] text-muted-foreground mb-0.5">
-                  {new Date(t.created).toLocaleString()}
+                <div className="font-medium truncate">{note.title || 'Untitled'}</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  {new Date(note.created_at).toLocaleString()}
                 </div>
-                <div className="truncate">{t.preview}</div>
               </button>
             ))}
           </div>

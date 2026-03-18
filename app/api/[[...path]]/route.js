@@ -165,12 +165,17 @@ async function getNotes(supabase, searchParams, ownerId) {
   const limit = parseInt(searchParams.get('limit')) || 50;
   const offset = parseInt(searchParams.get('offset')) || 0;
   const statusFilter = searchParams.get('status');
+  const hasTranscript = searchParams.get('has_transcript') === 'true';
 
   // Build base query
   let query = supabase.from('notes').select('*, note_tags(tag_id, tags(*))', { count: 'exact' })
     .eq('owner_id', ownerId)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
+
+  if (hasTranscript) {
+    query = query.not('transcript', 'is', null);
+  }
 
   if (search) {
     query = query.or(`title.ilike.%${search}%,content::text.ilike.%${search}%`);
