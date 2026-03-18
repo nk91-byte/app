@@ -73,15 +73,38 @@ ${transcriptText}`,
 
     // Prepend the prefill character '{' since the assistant turn started with it
     const raw = ('{' + response.content[0].text).trim();
+
+    // Sanitize: fix literal control characters inside JSON strings
+    // Only replaces chars inside quoted strings to avoid breaking whitespace between tokens
+    const sanitize = (s) => {
+      let out = '';
+      let inString = false;
+      let escaped = false;
+      for (const ch of s) {
+        if (escaped) { out += ch; escaped = false; continue; }
+        if (ch === '\\' && inString) { out += ch; escaped = true; continue; }
+        if (ch === '"') { inString = !inString; out += ch; continue; }
+        if (inString && (ch === '\n' || ch === '\r' || ch === '\t')) {
+          out += ch === '\n' ? '\\n' : ch === '\r' ? '\\r' : '\\t';
+        } else {
+          out += ch;
+        }
+      }
+      return out;
+    };
+
+    // Trim to last '}' in case response was truncated mid-array
+    const trimToLastBrace = (s) => {
+      const last = s.lastIndexOf('}');
+      return last >= 0 ? s.slice(0, last + 1) : s;
+    };
+
     let parsed;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      // Fallback: extract outermost {...} and try again
-      const match = raw.match(/\{[\s\S]*\}/);
-      if (match) parsed = JSON.parse(match[0]);
-      else throw new Error('Could not parse Claude response as JSON');
+    const candidates = [raw, sanitize(raw), trimToLastBrace(raw), sanitize(trimToLastBrace(raw))];
+    for (const candidate of candidates) {
+      try { parsed = JSON.parse(candidate); break; } catch { /* try next */ }
     }
+    if (!parsed) throw new Error('Could not parse Claude response as JSON');
 
     return NextResponse.json({
       sections: (parsed.sections || []).map(s => ({ title: s.title, points: s.points || [] })),
