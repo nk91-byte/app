@@ -2110,8 +2110,8 @@ export default function App() {
                                     title={isDone ? 'Mark as open' : 'Mark as done'}
                                   >
                                     {isDone
-                                      ? <CheckSquare size={13} className="text-primary/50" />
-                                      : <div className="w-[13px] h-[13px] rounded-[3px] border-2 border-primary bg-primary/10" />}
+                                      ? <CheckSquare size={13} className="text-primary/70" />
+                                      : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/50" />}
                                   </button>
                                   <span className={`flex-1 ${isDone ? 'line-through text-muted-foreground/50' : 'text-foreground'}`}>
                                     {item.text}

@@ -333,9 +333,14 @@ async function updateNote(supabase, id, body, ownerId) {
       }
     }
 
-    // Archive removed todos
+    // Build a set of todo_ids that belong to AI-claimed action items — these live outside
+    // the editor content and must never be archived by the content-sync sweep.
+    const aiItems = existing.ai_action_items || [];
+    const aiTodoIds = new Set(aiItems.filter(i => i.claimed && i.todo_id).map(i => i.todo_id));
+
+    // Archive removed todos (skip AI-claimed ones)
     for (const [todoId] of existingTodoMap) {
-      if (!contentTodoIds.has(todoId)) {
+      if (!contentTodoIds.has(todoId) && !aiTodoIds.has(todoId)) {
         await supabase.from('todos').update({ archived_at: now(), updated_at: now() }).eq('id', todoId);
       }
     }
