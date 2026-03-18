@@ -504,7 +504,7 @@ export default function App() {
   const [sourceTags, setSourceTags] = useState([]);
   const [projectTags, setProjectTags] = useState([]);
   const [selectedNoteId, setSelectedNoteId] = useState(null);
-  const [noteTab, setNoteTab] = useState('notes'); // 'notes' | 'transcript'
+  const [noteTab, setNoteTab] = useState('notes'); // 'notes' | 'summary' | 'transcript'
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState([]);
@@ -1002,8 +1002,8 @@ export default function App() {
     // Optimistic local update
     setEditingNote(prev => ({ ...prev, transcript, transcript_status: 'done' }));
     setNotes(prev => prev.map(n => n.id === noteId ? { ...n, transcript, transcript_status: 'done' } : n));
-    // Stay on notes tab so the summary spinner is visible
-    setNoteTab('notes');
+    // Switch to summary tab so the spinner is visible while Claude generates
+    setNoteTab('summary');
     // Persist transcript to DB
     try {
       await api(`notes/${noteId}`, {
@@ -2076,105 +2076,105 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* Tab switcher — only visible when a transcript exists */}
-                  {editingNote.transcript && (
-                    <div className="flex items-center gap-0.5 px-4 py-1.5 border-b flex-shrink-0">
+                  {/* Tab switcher — always visible */}
+                  <div className="flex items-center gap-0 px-4 border-b flex-shrink-0">
+                    {[
+                      { id: 'notes', label: 'Notes' },
+                      { id: 'summary', label: 'Summary' },
+                      { id: 'transcript', label: 'Transcript' },
+                    ].map(tab => (
                       <button
-                        onClick={() => setNoteTab('notes')}
-                        className={`p-1.5 rounded-md transition-colors ${noteTab === 'notes' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
-                        title="Notes"
+                        key={tab.id}
+                        onClick={() => setNoteTab(tab.id)}
+                        className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-colors -mb-px ${noteTab === tab.id ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
                       >
-                        <Edit3 size={13} />
+                        {tab.label}
+                        {tab.id === 'summary' && isGeneratingSummary && (
+                          <Loader2 size={10} className="animate-spin" />
+                        )}
                       </button>
-                      <button
-                        onClick={() => setNoteTab('transcript')}
-                        className={`p-1.5 rounded-md transition-colors ${noteTab === 'transcript' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
-                        title="Transcript"
-                      >
-                        <FileText size={13} />
-                      </button>
-                    </div>
-                  )}
+                    ))}
+                  </div>
 
                   {/* Editor area */}
                   <div className="flex-1 overflow-y-auto px-4 pt-3 pb-4 min-h-0">
-                    {noteTab === 'transcript' && editingNote.transcript ? (
-                      <TranscriptViewer
-                        key={`transcript-${editingNote.id}`}
-                        transcript={editingNote.transcript}
-                        onChange={handleTranscriptChange}
-                      />
-                    ) : (
-                      <NoteEditor
-                        key={`note-${editingNote.id}`}
-                        id={editingNote.id}
-                        content={editingNote.content}
-                        onUpdate={(newContent) => {
-                          setEditingNote(prev => ({ ...prev, content: newContent }));
-                          setNotes(prev => prev.map(n => n.id === editingNote.id ? { ...n, content: newContent } : n));
-                          handleNoteContentUpdate(editingNote.id, editingNote.title, newContent, editingNote.tags?.map(t => t.id));
-                        }}
-                        placeholder="Start writing..."
-                        toolbarOpen={editorToolbarOpen}
-                        onToolbarToggle={setEditorToolbarOpen}
-                        projectTags={projectTags}
-                      />
-                    )}
 
-                    {/* Retry Summary button — shown when transcript exists but summary failed/missing */}
-                    {noteTab === 'notes' && !isGeneratingSummary && editingNote.transcript?.utterances?.length > 0 && !(Array.isArray(editingNote.summary) && editingNote.summary.length > 0) && (
-                      <div className="mt-4">
-                        <button
-                          onClick={retrySummary}
-                          className="text-[11px] px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium flex items-center gap-1.5"
-                        >
-                          <Loader2 size={11} className="hidden" />
-                          Generate AI summary
-                        </button>
-                      </div>
-                    )}
-
-                    {/* AI Summary & Action Items — shown in notes tab when summary exists or is generating */}
-                    {noteTab === 'notes' && (isGeneratingSummary || (Array.isArray(editingNote.summary) && editingNote.summary.length > 0) || editingNote.ai_action_items?.length > 0) && (
-                      <div className="mt-6 border-t pt-4 space-y-4">
-                        {isGeneratingSummary ? (
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Loader2 size={12} className="animate-spin" />
-                            Generating AI summary…
-                          </div>
-                        ) : (
-                          <>
-                            {Array.isArray(editingNote.summary) && editingNote.summary.length > 0 && (
-                              <div className="space-y-3">
-                                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">AI Summary</p>
-                                {editingNote.summary.map((section, si) => (
-                                  <div key={si}>
-                                    <p className="text-[12px] font-semibold text-foreground/90 mb-1">{section.title}</p>
-                                    <ul className="space-y-0.5">
-                                      {section.points.map((point, pi) => (
-                                        <li key={pi} className="flex gap-2 text-[13px] text-foreground/75 leading-snug">
-                                          <span className="mt-1.5 w-1 h-1 rounded-full bg-muted-foreground/40 flex-shrink-0" />
-                                          {point}
-                                        </li>
-                                      ))}
-                                    </ul>
+                    {/* ── NOTES TAB ── */}
+                    {noteTab === 'notes' && (
+                      <>
+                        {/* Todos from this meeting — at top of notes tab */}
+                        {(() => {
+                          const linked = todos.filter(t => t.note_id === editingNote.id);
+                          if (!linked.length) return null;
+                          return (
+                            <div className="mb-4 pb-4 border-b">
+                              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Todos from this meeting</p>
+                              <div className="space-y-1">
+                                {linked.map(t => (
+                                  <div key={t.id} className="flex items-center gap-2 text-[13px]">
+                                    {t.is_done
+                                      ? <CheckSquare size={13} className="text-primary/50 flex-shrink-0" />
+                                      : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30 flex-shrink-0" />}
+                                    <span className={t.is_done ? 'line-through text-muted-foreground/50' : 'text-foreground'}>{t.text}</span>
                                   </div>
                                 ))}
                               </div>
-                            )}
+                            </div>
+                          );
+                        })()}
+                        <NoteEditor
+                          key={`note-${editingNote.id}`}
+                          id={editingNote.id}
+                          content={editingNote.content}
+                          onUpdate={(newContent) => {
+                            setEditingNote(prev => ({ ...prev, content: newContent }));
+                            setNotes(prev => prev.map(n => n.id === editingNote.id ? { ...n, content: newContent } : n));
+                            handleNoteContentUpdate(editingNote.id, editingNote.title, newContent, editingNote.tags?.map(t => t.id));
+                          }}
+                          placeholder="Start writing..."
+                          toolbarOpen={editorToolbarOpen}
+                          onToolbarToggle={setEditorToolbarOpen}
+                          projectTags={projectTags}
+                        />
+                      </>
+                    )}
+
+                    {/* ── SUMMARY TAB ── */}
+                    {noteTab === 'summary' && (
+                      <div className="space-y-4">
+                        {isGeneratingSummary ? (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2">
+                            <Loader2 size={12} className="animate-spin" />
+                            Generating AI summary…
+                          </div>
+                        ) : (Array.isArray(editingNote.summary) && editingNote.summary.length > 0) ? (
+                          <>
+                            {/* Summary sections */}
+                            <div className="space-y-3">
+                              {editingNote.summary.map((section, si) => (
+                                <div key={si}>
+                                  <p className="text-[12px] font-semibold text-foreground/90 mb-1">{section.title}</p>
+                                  <ul className="space-y-0.5">
+                                    {section.points.map((point, pi) => (
+                                      <li key={pi} className="flex gap-2 text-[13px] text-foreground/75 leading-snug">
+                                        <span className="mt-1.5 w-1 h-1 rounded-full bg-muted-foreground/40 flex-shrink-0" />
+                                        {point}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ))}
+                            </div>
+                            {/* Action items */}
                             {editingNote.ai_action_items?.length > 0 && (
-                              <div>
-                                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">AI Action Items</p>
+                              <div className="pt-2 border-t">
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Action Items</p>
                                 <div className="space-y-1.5">
                                   {editingNote.ai_action_items.map(item => {
                                     const linkedTodo = item.todo_id ? todos.find(t => t.id === item.todo_id) : null;
                                     const isDone = linkedTodo?.is_done;
-                                    // 3 states: not added (grey) | added+open (dark) | done (strikethrough)
                                     return (
-                                      <div
-                                        key={item.id}
-                                        className="flex items-center gap-2 text-[13px] leading-tight rounded-md px-2 py-1.5 transition-colors hover:bg-muted/30"
-                                      >
+                                      <div key={item.id} className="flex items-center gap-2 text-[13px] leading-tight rounded-md px-2 py-1.5 transition-colors hover:bg-muted/30">
                                         <span className="flex-shrink-0">
                                           {isDone
                                             ? <CheckSquare size={13} className="text-primary/50" />
@@ -2182,9 +2182,9 @@ export default function App() {
                                               ? <CheckSquare size={13} className="text-primary" />
                                               : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30" />}
                                         </span>
-                                        <span className={`flex-1 ${isDone ? 'line-through text-muted-foreground/50' : item.claimed ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                        <span className={`flex-1 ${isDone ? 'line-through text-muted-foreground/50' : item.claimed ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
                                           {item.text}
-                                          {item.speaker && <span className="ml-1.5 text-[11px] text-muted-foreground/50">— {item.speaker}</span>}
+                                          {item.speaker && <span className="ml-1.5 text-[11px] text-muted-foreground/50 font-normal">— {item.speaker}</span>}
                                         </span>
                                         {!item.claimed && (
                                           <button
@@ -2210,29 +2210,33 @@ export default function App() {
                                 </div>
                               </div>
                             )}
-                            {/* Linked Todos — todos created from this note's action items */}
-                            {(() => {
-                              const linked = todos.filter(t => t.note_id === editingNote.id);
-                              if (!linked.length) return null;
-                              return (
-                                <div>
-                                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Linked To-Dos</p>
-                                  <div className="space-y-1">
-                                    {linked.map(t => (
-                                      <div key={t.id} className="flex items-center gap-2 text-[13px] text-muted-foreground">
-                                        {t.is_done
-                                          ? <CheckSquare size={13} className="text-primary/50 flex-shrink-0" />
-                                          : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30 flex-shrink-0" />}
-                                        <span className={t.is_done ? 'line-through opacity-50' : ''}>{t.text}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              );
-                            })()}
                           </>
+                        ) : (
+                          /* Empty state */
+                          <div className="pt-2 space-y-2">
+                            {editingNote.transcript?.utterances?.length > 0 ? (
+                              <>
+                                <p className="text-xs text-muted-foreground">No summary yet.</p>
+                                <button
+                                  onClick={retrySummary}
+                                  className="text-[11px] px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium"
+                                >
+                                  Generate AI summary
+                                </button>
+                              </>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">Record or upload a meeting to generate a summary.</p>
+                            )}
+                          </div>
                         )}
                       </div>
+                    )}
+
+                    {/* ── TRANSCRIPT TAB ── */}
+                    {noteTab === 'transcript' && (
+                      editingNote.transcript
+                        ? <TranscriptViewer key={`transcript-${editingNote.id}`} transcript={editingNote.transcript} onChange={handleTranscriptChange} />
+                        : <p className="text-xs text-muted-foreground pt-2">No transcript available.</p>
                     )}
                   </div>
 
