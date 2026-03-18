@@ -1002,8 +1002,8 @@ export default function App() {
     // Optimistic local update
     setEditingNote(prev => ({ ...prev, transcript, transcript_status: 'done' }));
     setNotes(prev => prev.map(n => n.id === noteId ? { ...n, transcript, transcript_status: 'done' } : n));
-    // Switch to summary tab so the spinner is visible while Claude generates
-    setNoteTab('summary');
+    // Switch to transcript tab so the user can review the transcript
+    setNoteTab('transcript');
     // Persist transcript to DB
     try {
       await api(`notes/${noteId}`, {
@@ -1014,35 +1014,7 @@ export default function App() {
       console.error('Failed to save transcript:', e);
       toast.error('Could not save transcript');
     }
-    // Auto-generate AI summary
-    setIsGeneratingSummary(true);
-    toast('Generating AI summary…', { duration: 5000 });
-    try {
-      const result = await fetch('/api/summarize', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ transcript }),
-      });
-      if (!result.ok) throw new Error(await result.text());
-      const { sections, action_items } = await result.json();
-      const ai_action_items = action_items;
-      // Update local state immediately — show summary even if DB save fails
-      setEditingNote(prev => ({ ...prev, summary: sections, ai_action_items }));
-      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, summary: sections, ai_action_items } : n));
-      toast.success('AI summary ready');
-      // Persist to DB — await so that any subsequent loadNotes() sees the latest data
-      try {
-        await api(`notes/${noteId}`, {
-          method: 'PUT',
-          body: JSON.stringify({ summary: sections, ai_action_items }),
-        });
-      } catch (e) { console.error('Failed to persist summary to DB:', e); }
-    } catch (e) {
-      console.error('Failed to generate summary:', e);
-      toast.error(`AI summary failed: ${e.message}`);
-    } finally {
-      setIsGeneratingSummary(false);
-    }
+    toast.success('Transcript ready — go to Summary tab to generate an AI summary');
   }, [editingNote]);
 
   const retrySummary = useCallback(async () => {
