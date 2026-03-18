@@ -2099,7 +2099,7 @@ export default function App() {
                     {/* ── NOTES TAB ── */}
                     {noteTab === 'notes' && (
                       <>
-                        {/* Todos from this meeting — only AI-claimed todos */}
+                        {/* Actions from Summary — only AI-claimed todos */}
                         {(() => {
                           const aiTodoIds = new Set(
                             (editingNote.ai_action_items || [])
@@ -2110,7 +2110,7 @@ export default function App() {
                           if (!linked.length) return null;
                           return (
                             <div className="mb-4 pb-4 border-b">
-                              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Todos from this meeting</p>
+                              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Actions from Summary</p>
                               <div className="space-y-1">
                                 {linked.map(t => (
                                   <div key={t.id} className="flex items-center gap-2 text-[13px]">
