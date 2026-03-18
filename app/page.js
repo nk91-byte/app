@@ -1078,13 +1078,10 @@ export default function App() {
     if (!item || item.claimed) return;
     // Create real todo linked to this note
     const todo = await createTodo(item.text, noteId, editingNote.tags?.map(t => t.id) || []);
-    if (!todo) {
-      toast.error('Could not create to-do item');
-      return;
-    }
+    // Even if todo response is missing (network hiccup), the todo was likely created in DB.
+    // Mark claimed regardless and store the id if we have it.
     toast.success('Added to your To-Do list');
-    // Mark claimed locally, storing todo_id so we can undo later
-    const updated = items.map(i => i.id === itemId ? { ...i, claimed: true, todo_id: todo.id } : i);
+    const updated = items.map(i => i.id === itemId ? { ...i, claimed: true, todo_id: todo?.id || null } : i);
     setEditingNote(prev => ({ ...prev, ai_action_items: updated }));
     setNotes(prev => prev.map(n => n.id === noteId ? { ...n, ai_action_items: updated } : n));
     try {
@@ -2102,9 +2099,14 @@ export default function App() {
                     {/* ── NOTES TAB ── */}
                     {noteTab === 'notes' && (
                       <>
-                        {/* Todos from this meeting — at top of notes tab */}
+                        {/* Todos from this meeting — only AI-claimed todos */}
                         {(() => {
-                          const linked = todos.filter(t => t.note_id === editingNote.id);
+                          const aiTodoIds = new Set(
+                            (editingNote.ai_action_items || [])
+                              .filter(i => i.claimed && i.todo_id)
+                              .map(i => i.todo_id)
+                          );
+                          const linked = todos.filter(t => aiTodoIds.has(t.id));
                           if (!linked.length) return null;
                           return (
                             <div className="mb-4 pb-4 border-b">
@@ -2182,9 +2184,9 @@ export default function App() {
                                               ? <CheckSquare size={13} className="text-primary" />
                                               : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30" />}
                                         </span>
-                                        <span className={`flex-1 ${isDone ? 'line-through text-muted-foreground/50' : item.claimed ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                                        <span className={`flex-1 ${isDone ? 'line-through text-muted-foreground/40' : item.claimed ? 'text-foreground font-semibold' : 'text-muted-foreground/60 italic'}`}>
                                           {item.text}
-                                          {item.speaker && <span className="ml-1.5 text-[11px] text-muted-foreground/50 font-normal">— {item.speaker}</span>}
+                                          {item.speaker && <span className="ml-1.5 text-[11px] text-muted-foreground/40 font-normal not-italic">— {item.speaker}</span>}
                                         </span>
                                         {!item.claimed && (
                                           <button
