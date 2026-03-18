@@ -1064,7 +1064,10 @@ export default function App() {
       toast.success('AI summary ready');
       try {
         await api(`notes/${noteId}`, { method: 'PUT', body: JSON.stringify({ summary: sections, ai_action_items: action_items }) });
-      } catch (e) { console.error('Failed to persist summary:', e); }
+      } catch (e) {
+        console.error('Failed to persist summary:', e);
+        toast.error('Summary generated but could not be saved — please try again');
+      }
     } catch (e) {
       console.error('Failed to generate summary:', e);
       toast.error(`AI summary failed: ${e.message}`);
@@ -1191,16 +1194,14 @@ export default function App() {
       }));
       // Sync is_done into editingNote.ai_action_items so Summary tab reflects done state
       // without needing the todo to be in the current paginated todos list
-      setEditingNote(prev => {
-        if (!prev?.ai_action_items) return prev;
-        const hasLinked = prev.ai_action_items.some(i => i.todo_id === todoId);
-        if (!hasLinked) return prev;
-        const updated = prev.ai_action_items.map(i => i.todo_id === todoId ? { ...i, is_done: todo.is_done } : i);
-        // Persist silently
-        api(`notes/${prev.id}`, { method: 'PUT', body: JSON.stringify({ ai_action_items: updated }) })
+      if (editingNote?.ai_action_items?.some(i => i.todo_id === todoId)) {
+        const updatedAiItems = editingNote.ai_action_items.map(i =>
+          i.todo_id === todoId ? { ...i, is_done: todo.is_done } : i
+        );
+        setEditingNote(prev => prev?.id === editingNote.id ? { ...prev, ai_action_items: updatedAiItems } : prev);
+        api(`notes/${editingNote.id}`, { method: 'PUT', body: JSON.stringify({ ai_action_items: updatedAiItems }) })
           .catch(e => console.error('Failed to sync ai_action_items is_done:', e));
-        return { ...prev, ai_action_items: updated };
-      });
+      }
       if (todo.is_done) {
         toast('Action marked as done', {
           duration: 10000,

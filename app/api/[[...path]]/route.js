@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { v4 as uuidv4 } from 'uuid';
 import { calculateNextDueDate } from '@/lib/recurrence';
 
+export const maxDuration = 60; // Vercel Hobby plan — prevent 10s timeout on complex DB operations
+
 // ===== HELPER FUNCTIONS =====
 
 function getTextFromNode(node) {
