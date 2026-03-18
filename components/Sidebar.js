@@ -73,7 +73,7 @@ export default function Sidebar({
                                         }`}
                                     style={view === 'notebook' ? { backgroundColor: '#5BA89D18', color: '#5BA89D' } : {}}
                                 >
-                                    <BookOpen size={18} />
+                                    <BookOpen size={18} className="text-orange-500" />
                                 </button>
                             </TooltipTrigger>
                             <TooltipContent side="right" className="font-medium">
@@ -88,7 +88,7 @@ export default function Sidebar({
                                         }`}
                                     style={view === 'todos' ? { backgroundColor: '#5BA89D18', color: '#5BA89D' } : {}}
                                 >
-                                    <CheckSquare size={18} />
+                                    <CheckSquare size={18} className="text-orange-500" />
                                 </button>
                             </TooltipTrigger>
                             <TooltipContent side="right" className="font-medium">
@@ -103,7 +103,7 @@ export default function Sidebar({
                                         }`}
                                     style={view === 'tags' ? { backgroundColor: '#5BA89D18', color: '#5BA89D' } : {}}
                                 >
-                                    <Tag size={18} />
+                                    <Tag size={18} className="text-orange-500" />
                                 </button>
                             </TooltipTrigger>
                             <TooltipContent side="right" className="font-medium">
@@ -119,7 +119,7 @@ export default function Sidebar({
                                 }`}
                             style={view === 'notebook' ? { backgroundColor: '#5BA89D18', color: '#5BA89D' } : {}}
                         >
-                            <BookOpen size={18} />
+                            <BookOpen size={18} className="text-orange-500 flex-shrink-0" />
                             <span>Notebook</span>
                         </button>
                         <button
@@ -128,7 +128,7 @@ export default function Sidebar({
                                 }`}
                             style={view === 'todos' ? { backgroundColor: '#5BA89D18', color: '#5BA89D' } : {}}
                         >
-                            <CheckSquare size={18} />
+                            <CheckSquare size={18} className="text-orange-500 flex-shrink-0" />
                             <span>To-Do List</span>
                         </button>
                         <button
@@ -137,7 +137,7 @@ export default function Sidebar({
                                 }`}
                             style={view === 'tags' ? { backgroundColor: '#5BA89D18', color: '#5BA89D' } : {}}
                         >
-                            <Tag size={18} />
+                            <Tag size={18} className="text-orange-500 flex-shrink-0" />
                             <span>Tags</span>
                         </button>
                     </>

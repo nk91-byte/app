@@ -328,7 +328,7 @@ function TodoItemRow({ todo, depth = 0, isDragOverlay = false, editingTodoId, se
           )}
         </button>
         <span
-          className={`flex-1 text-sm cursor-pointer line-clamp-2 break-words leading-tight ${todo.is_done ? 'line-through text-muted-foreground' : ''} ${editingTodoId === todo.id ? 'font-medium' : ''}`}
+          className={`flex-1 text-sm cursor-pointer line-clamp-2 break-words leading-tight ${todo.is_done ? 'line-through text-muted-foreground' : ''}`}
           onClick={() => { setEditingTodoId(todo.id); setEditingTodoText(todo.text); }}
         >
           {todo.text || <span className="text-muted-foreground italic">Empty todo</span>}
@@ -2046,8 +2046,8 @@ export default function App() {
                         type="button"
                         onClick={() => setEditorToolbarOpen(!editorToolbarOpen)}
                         className={`p-1 rounded-md transition-colors flex-shrink-0 ${editorToolbarOpen
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                          ? 'bg-orange-100 text-orange-500'
+                          : 'text-orange-400 hover:text-orange-500 hover:bg-orange-50'
                           }`}
                         title={editorToolbarOpen ? 'Hide formatting' : 'Show formatting'}
                       >
@@ -2057,8 +2057,8 @@ export default function App() {
                         type="button"
                         onClick={() => setShowActionItems(!showActionItems)}
                         className={`p-1 rounded-md transition-colors flex-shrink-0 ${showActionItems
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                          ? 'bg-orange-100 text-orange-500'
+                          : 'text-orange-400 hover:text-orange-500 hover:bg-orange-50'
                           }`}
                         title={showActionItems ? 'Hide action items' : 'Show action items'}
                       >
@@ -2071,7 +2071,7 @@ export default function App() {
                   {/* Collapsible Action Items Summary */}
                   {showActionItems && (
                     <div className="border-b bg-muted/20 px-4 py-3 flex-shrink-0">
-                      <div className="flex items-center gap-2 mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      <div className="flex items-center gap-2 mb-2 text-xs font-semibold uppercase tracking-wider text-orange-500">
                         <ListTodo size={12} />
                         Action Items
                       </div>

@@ -192,7 +192,7 @@ export default function TodoDetailPanel({
                                 e.target.blur();
                             }
                         }}
-                        className="text-sm font-semibold border-transparent px-0 focus-visible:ring-0 shadow-none -ml-1 text-foreground bg-transparent resize-none flex-1 min-w-0 leading-tight"
+                        className="text-sm font-normal border-transparent px-0 focus-visible:ring-0 shadow-none -ml-1 text-foreground bg-transparent resize-none flex-1 min-w-0 leading-tight"
                         placeholder="Task title..."
                         maxRows={2}
                     />
