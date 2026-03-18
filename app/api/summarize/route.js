@@ -48,6 +48,8 @@ Rules:
 Transcript:
 ${transcriptText}`,
         },
+        // Assistant prefill forces Claude to start directly with { — prevents markdown fences or preamble
+        { role: 'assistant', content: '{' },
       ],
     };
 
@@ -69,24 +71,17 @@ ${transcriptText}`,
       }
     }
 
-    const raw = response.content[0].text.trim();
+    // Prepend the prefill character '{' since the assistant turn started with it
+    const raw = ('{' + response.content[0].text).trim();
     let parsed;
-    // Helper: strip control characters that break JSON.parse (unescaped newlines inside strings, etc.)
-    const sanitize = (str) => str.replace(/[\u0000-\u001F\u007F]/g, (ch) => {
-      if (ch === '\n') return '\\n';
-      if (ch === '\r') return '\\r';
-      if (ch === '\t') return '\\t';
-      return '';
-    });
-    const attempts = [raw, sanitize(raw)];
-    for (const attempt of attempts) {
-      try { parsed = JSON.parse(attempt); break; } catch { /* try next */ }
-      const match = attempt.match(/\{[\s\S]*\}/);
-      if (match) { try { parsed = JSON.parse(match[0]); break; } catch { /* try next */ } }
-      const sanitizedMatch = match ? sanitize(match[0]) : null;
-      if (sanitizedMatch) { try { parsed = JSON.parse(sanitizedMatch); break; } catch { /* try next */ } }
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      // Fallback: extract outermost {...} and try again
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (match) parsed = JSON.parse(match[0]);
+      else throw new Error('Could not parse Claude response as JSON');
     }
-    if (!parsed) throw new Error('Could not parse Claude response as JSON');
 
     return NextResponse.json({
       sections: (parsed.sections || []).map(s => ({ title: s.title, points: s.points || [] })),
