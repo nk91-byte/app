@@ -338,9 +338,11 @@ async function updateNote(supabase, id, body, ownerId) {
     const aiItems = existing.ai_action_items || [];
     const aiTodoIds = new Set(aiItems.filter(i => i.claimed && i.todo_id).map(i => i.todo_id));
 
-    // Archive removed todos (skip AI-claimed ones)
-    for (const [todoId] of existingTodoMap) {
-      if (!contentTodoIds.has(todoId) && !aiTodoIds.has(todoId)) {
+    // Archive removed todos (skip AI-claimed ones).
+    // Use skip_content_update as the primary race-free guard — it's set at todo creation time.
+    // aiTodoIds is kept as a secondary belt-and-suspenders check.
+    for (const [todoId, todo] of existingTodoMap) {
+      if (!contentTodoIds.has(todoId) && !aiTodoIds.has(todoId) && !todo.skip_content_update) {
         await supabase.from('todos').update({ archived_at: now(), updated_at: now() }).eq('id', todoId);
       }
     }

@@ -1167,15 +1167,22 @@ export default function App() {
         if (t.parent_todo_id === todoId && todo.is_done) return { ...t, is_done: true, done_at: new Date().toISOString() };
         return t;
       }));
-      // Sync is_done into editingNote.ai_action_items so Summary tab reflects done state
-      // without needing the todo to be in the current paginated todos list
-      if (editingNote?.ai_action_items?.some(i => i.todo_id === todoId)) {
-        const updatedAiItems = editingNote.ai_action_items.map(i =>
-          i.todo_id === todoId ? { ...i, is_done: todo.is_done } : i
-        );
-        setEditingNote(prev => prev?.id === editingNote.id ? { ...prev, ai_action_items: updatedAiItems } : prev);
-        api(`notes/${editingNote.id}`, { method: 'PUT', body: JSON.stringify({ ai_action_items: updatedAiItems }) })
-          .catch(e => console.error('Failed to sync ai_action_items is_done:', e));
+      // Sync is_done into editingNote.ai_action_items so Summary tab reflects done state.
+      // Use text-based fallback in case todo_id wasn't stored (network hiccup during claim).
+      if (editingNote?.ai_action_items) {
+        const todoText = todos.find(t => t.id === todoId)?.text?.trim().toLowerCase();
+        const matchFn = (i) => i.todo_id === todoId || (todoText && i.claimed && i.text?.trim().toLowerCase() === todoText);
+        if (editingNote.ai_action_items.some(matchFn)) {
+          const updatedAiItems = editingNote.ai_action_items.map(i =>
+            matchFn(i) ? { ...i, is_done: todo.is_done } : i
+          );
+          setEditingNote(prev => prev?.id === editingNote.id ? { ...prev, ai_action_items: updatedAiItems } : prev);
+          // Also update notes array so navigating away and back preserves the done state
+          setNotes(prev => prev.map(n => n.id === editingNote.id ? { ...n, ai_action_items: updatedAiItems } : n));
+          // Await so loadNotes() below doesn't race and overwrite with stale DB data
+          await api(`notes/${editingNote.id}`, { method: 'PUT', body: JSON.stringify({ ai_action_items: updatedAiItems }) })
+            .catch(e => console.error('Failed to sync ai_action_items is_done:', e));
+        }
       }
       if (todo.is_done) {
         toast('Action marked as done', {
@@ -1785,10 +1792,14 @@ export default function App() {
                         viewLayout={viewLayout}
                         selectedNoteId={selectedNoteId}
                         setSelectedNoteId={setSelectedNoteId}
-                        setEditingNote={(note) => {
-                          // Don't overwrite in-memory editingNote when re-clicking the already-open note
-                          // (avoids wiping unsaved AI summary/transcript from local state)
-                          setEditingNote(prev => prev?.id === note.id ? prev : note);
+                        setEditingNote={async (note) => {
+                          if (editingNote?.id === note.id) return;
+                          try {
+                            const full = await api(`notes/${note.id}`);
+                            setEditingNote(full);
+                          } catch (e) {
+                            setEditingNote(note); // fallback to cached version
+                          }
                         }}
                         setTagDropdownNoteId={setTagDropdownNoteId}
                         formatDate={formatDate}
@@ -2073,18 +2084,13 @@ export default function App() {
                             {aiClaimed.map(item => {
                               const linkedTodo = item.todo_id ? todos.find(t => t.id === item.todo_id) : todos.find(t => t.note_id === editingNote.id && t.text === item.text);
                               const isDone = item.is_done ?? linkedTodo?.is_done ?? false;
-                              const todoId = item.todo_id || linkedTodo?.id;
                               return (
                                 <div key={`ai-${item.id}`} className="flex items-start gap-2 text-[13px] leading-tight">
-                                  <button
-                                    onClick={() => todoId && toggleTodo(todoId)}
-                                    className={`mt-0.5 flex-shrink-0 transition-colors ${todoId ? 'cursor-pointer hover:opacity-70' : 'cursor-default opacity-50'}`}
-                                    title={isDone ? 'Mark as open' : 'Mark as done'}
-                                  >
+                                  <span className="mt-0.5 text-muted-foreground/70 pointer-events-none flex-shrink-0">
                                     {isDone
                                       ? <CheckSquare size={13} className="text-primary/70" />
                                       : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/50" />}
-                                  </button>
+                                  </span>
                                   <span className={`flex-1 ${isDone ? 'line-through text-muted-foreground/50' : 'text-foreground'}`}>
                                     {item.text}
                                     {item.speaker && <span className="ml-1.5 text-[11px] text-muted-foreground/40 font-normal not-italic">— {item.speaker}</span>}
