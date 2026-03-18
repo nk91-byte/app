@@ -28,6 +28,7 @@ import TodosBrowser from '@/components/TodosBrowser';
 import TodoDetailPanel from '@/components/TodoDetailPanel';
 import TagsManagement from '@/components/TagsManagement';
 import QuickAddModal from '@/components/QuickAddModal';
+import DueDatePicker from '@/components/DueDatePicker';
 import RecordingControls from '@/components/RecordingControls';
 import TranscriptViewer from '@/components/TranscriptViewer';
 import { cleanupOldAudio } from '@/lib/audioStore';
@@ -553,6 +554,7 @@ export default function App() {
   const [noteVisibleFields, setNoteVisibleFields] = useState(['date', 'actionItems', 'tags', 'preview']);
   const [todoVisibleFields, setTodoVisibleFields] = useState(['tags', 'actionItems', 'daysTillDue', 'dueDate', 'linkedNote']);
   const [todoTagPickerId, setTodoTagPickerId] = useState(null);
+  const [aiActionTagPickerId, setAiActionTagPickerId] = useState(null);
   const [newTodoTagIds, setNewTodoTagIds] = useState([]);
   const [collapsedGroups, setCollapsedGroups] = useState([]);
   const [collapsedNoteGroups, setCollapsedNoteGroups] = useState([]);
@@ -2103,7 +2105,6 @@ export default function App() {
                                   </span>
                                   <span className={`flex-1 ${isDone ? 'line-through text-muted-foreground/50' : 'text-foreground'}`}>
                                     {item.text}
-                                    {item.speaker && <span className="ml-1.5 text-[11px] text-muted-foreground/40 font-normal not-italic">— {item.speaker}</span>}
                                   </span>
                                 </div>
                               );
@@ -2152,8 +2153,9 @@ export default function App() {
                                   const linkedTodo = item.todo_id ? todos.find(t => t.id === item.todo_id) : todos.find(t => t.note_id === editingNote.id && t.text === item.text);
                                   const isDone = item.is_done ?? linkedTodo?.is_done ?? false;
                                   const todoId = item.todo_id || linkedTodo?.id;
+                                  const projectTag = linkedTodo?.tags?.find(t => t.type === 'project');
                                   return (
-                                    <div key={item.id} className="flex items-center gap-2 text-[13px]">
+                                    <div key={item.id} className="flex items-center gap-2 text-[13px] group/airow">
                                       <button
                                         onClick={() => todoId && toggleTodo(todoId)}
                                         className={`flex-shrink-0 transition-colors ${todoId ? 'cursor-pointer hover:opacity-70' : 'cursor-default opacity-50'}`}
@@ -2163,7 +2165,73 @@ export default function App() {
                                           ? <CheckSquare size={13} className="text-primary/50" />
                                           : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30" />}
                                       </button>
-                                      <span className={isDone ? 'line-through text-muted-foreground/50' : 'text-foreground'}>{item.text}</span>
+                                      <span className={`flex-1 ${isDone ? 'line-through text-muted-foreground/50' : 'text-foreground'}`}>{item.text}</span>
+                                      {projectTag && (
+                                        <span
+                                          className="text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0"
+                                          style={{ backgroundColor: projectTag.color + '20', color: projectTag.color }}
+                                        >
+                                          {projectTag.name}
+                                        </span>
+                                      )}
+                                      {linkedTodo?.due_date && (() => {
+                                        const today = new Date(); today.setHours(0,0,0,0);
+                                        const due = new Date(linkedTodo.due_date); due.setHours(0,0,0,0);
+                                        const diff = Math.round((due - today) / 86400000);
+                                        const color = diff < 0 ? 'text-red-500' : diff === 0 ? 'text-orange-500' : 'text-muted-foreground';
+                                        return <span className={`text-[10px] flex-shrink-0 ${color}`}>{due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>;
+                                      })()}
+                                      {todoId && (
+                                        <div className="flex items-center gap-0.5 opacity-0 group-hover/airow:opacity-100 transition-opacity flex-shrink-0">
+                                          <DueDatePicker
+                                            dueDate={linkedTodo?.due_date ? linkedTodo.due_date.split('T')[0] : null}
+                                            recurrence={linkedTodo?.recurrence}
+                                            onChange={({ dueDate, recurrence }) => {
+                                              const updates = {};
+                                              if (dueDate !== undefined) updates.due_date = dueDate ? new Date(dueDate).toISOString() : null;
+                                              if (recurrence !== undefined) updates.recurrence = recurrence;
+                                              updateTodo(todoId, updates);
+                                            }}
+                                          />
+                                          <div className="relative">
+                                            <button
+                                              onClick={() => setAiActionTagPickerId(aiActionTagPickerId === todoId ? null : todoId)}
+                                              className={`p-0.5 rounded transition-colors ${aiActionTagPickerId === todoId ? 'bg-primary/10 text-primary' : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted'}`}
+                                              title="Assign project"
+                                            >
+                                              <Tag size={11} />
+                                            </button>
+                                            {aiActionTagPickerId === todoId && (
+                                              <>
+                                                <div className="fixed inset-0 z-40" onClick={() => setAiActionTagPickerId(null)} />
+                                                <div className="absolute right-0 top-6 z-50 w-48 bg-popover border rounded-lg shadow-lg py-1" onClick={e => e.stopPropagation()}>
+                                                  <div className="max-h-48 overflow-y-auto py-1">
+                                                    {projectTags.map(tag => {
+                                                      const hasTag = linkedTodo?.tags?.some(t => t.id === tag.id);
+                                                      return (
+                                                        <button
+                                                          key={tag.id}
+                                                          onClick={() => toggleTodoTag(todoId, tag.id)}
+                                                          className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors flex items-center gap-2"
+                                                        >
+                                                          <div className={`w-3 h-3 rounded flex items-center justify-center border ${hasTag ? 'bg-primary border-primary text-primary-foreground' : 'border-input'}`}>
+                                                            {hasTag && <Check size={8} />}
+                                                          </div>
+                                                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
+                                                          <span className="truncate">{tag.name}</span>
+                                                        </button>
+                                                      );
+                                                    })}
+                                                    {projectTags.length === 0 && (
+                                                      <div className="px-3 py-1.5 text-xs text-muted-foreground italic">No project tags yet</div>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              </>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
                                   );
                                 })}
