@@ -28,7 +28,6 @@ import TodosBrowser from '@/components/TodosBrowser';
 import TodoDetailPanel from '@/components/TodoDetailPanel';
 import TagsManagement from '@/components/TagsManagement';
 import QuickAddModal from '@/components/QuickAddModal';
-import DueDatePicker from '@/components/DueDatePicker';
 import RecordingControls from '@/components/RecordingControls';
 import TranscriptViewer from '@/components/TranscriptViewer';
 import { cleanupOldAudio } from '@/lib/audioStore';
@@ -555,6 +554,7 @@ export default function App() {
   const [todoVisibleFields, setTodoVisibleFields] = useState(['tags', 'actionItems', 'daysTillDue', 'dueDate', 'linkedNote']);
   const [todoTagPickerId, setTodoTagPickerId] = useState(null);
   const [aiActionTagPickerId, setAiActionTagPickerId] = useState(null);
+  const [aiActionBubbleExpandedId, setAiActionBubbleExpandedId] = useState(null);
   const [newTodoTagIds, setNewTodoTagIds] = useState([]);
   const [collapsedGroups, setCollapsedGroups] = useState([]);
   const [collapsedNoteGroups, setCollapsedNoteGroups] = useState([]);
@@ -2182,54 +2182,79 @@ export default function App() {
                                         return <span className={`text-[10px] flex-shrink-0 ${color}`}>{due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>;
                                       })()}
                                       {todoId && (
-                                        <div className="flex items-center gap-0.5 opacity-0 group-hover/airow:opacity-100 transition-opacity flex-shrink-0">
-                                          <DueDatePicker
-                                            dueDate={linkedTodo?.due_date ? linkedTodo.due_date.split('T')[0] : null}
-                                            recurrence={linkedTodo?.recurrence}
-                                            onChange={({ dueDate, recurrence }) => {
-                                              const updates = {};
-                                              if (dueDate !== undefined) updates.due_date = dueDate ? new Date(dueDate).toISOString() : null;
-                                              if (recurrence !== undefined) updates.recurrence = recurrence;
-                                              updateTodo(todoId, updates);
-                                            }}
-                                          />
-                                          <div className="relative">
+                                        <div className="flex items-center gap-px p-px bg-popover/80 border border-border/20 rounded shadow-sm opacity-0 group-hover/airow:opacity-100 transition-opacity flex-shrink-0">
+                                          {aiActionBubbleExpandedId !== todoId ? (
                                             <button
-                                              onClick={() => setAiActionTagPickerId(aiActionTagPickerId === todoId ? null : todoId)}
-                                              className={`p-0.5 rounded transition-colors ${aiActionTagPickerId === todoId ? 'bg-primary/10 text-primary' : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted'}`}
-                                              title="Assign project"
+                                              onClick={() => setAiActionBubbleExpandedId(todoId)}
+                                              className={`p-0.5 rounded hover:bg-muted transition-colors ${linkedTodo?.due_date || projectTag ? 'text-primary/70' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
+                                              title="Task Options"
                                             >
-                                              <Tag size={11} />
+                                              <MoreHorizontal size={10} />
                                             </button>
-                                            {aiActionTagPickerId === todoId && (
-                                              <>
-                                                <div className="fixed inset-0 z-40" onClick={() => setAiActionTagPickerId(null)} />
-                                                <div className="absolute right-0 top-6 z-50 w-48 bg-popover border rounded-lg shadow-lg py-1" onClick={e => e.stopPropagation()}>
-                                                  <div className="max-h-48 overflow-y-auto py-1">
+                                          ) : (
+                                            <>
+                                              <button
+                                                onClick={() => setAiActionBubbleExpandedId(null)}
+                                                className="p-1 rounded hover:bg-muted text-muted-foreground/60 transition-colors"
+                                                title="Collapse"
+                                              >
+                                                <X size={10} />
+                                              </button>
+                                              <div className="w-px h-3 bg-border mr-1" />
+                                              <div className="relative flex items-center">
+                                                <button
+                                                  onClick={() => document.getElementById(`ai-date-${todoId}`)?.showPicker()}
+                                                  className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-dashed transition-colors ${linkedTodo?.due_date ? 'border-primary/30 text-foreground bg-primary/5' : 'border-transparent text-muted-foreground hover:bg-muted'}`}
+                                                >
+                                                  <CalendarIcon size={12} />
+                                                  {linkedTodo?.due_date ? (
+                                                    <span>{new Date(linkedTodo.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                                  ) : 'Date'}
+                                                </button>
+                                                <input
+                                                  id={`ai-date-${todoId}`}
+                                                  type="date"
+                                                  value={linkedTodo?.due_date ? linkedTodo.due_date.split('T')[0] : ''}
+                                                  onChange={(e) => updateTodo(todoId, { due_date: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                                                />
+                                              </div>
+                                              <div className="w-px h-3 bg-border mx-0.5" />
+                                              <Popover>
+                                                <PopoverTrigger asChild>
+                                                  <button
+                                                    className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-dashed transition-colors ${projectTag ? 'border-primary/30 text-foreground bg-primary/5' : 'border-transparent text-muted-foreground hover:bg-muted'}`}
+                                                  >
+                                                    <Tag size={12} />
+                                                    {projectTag ? projectTag.name : 'Project'}
+                                                  </button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-48 p-1" align="end" sideOffset={5}>
+                                                  <div className="max-h-48 overflow-y-auto">
+                                                    {projectTags.length === 0 && (
+                                                      <p className="text-xs text-muted-foreground px-2 py-2 italic">No projects exist</p>
+                                                    )}
                                                     {projectTags.map(tag => {
                                                       const hasTag = linkedTodo?.tags?.some(t => t.id === tag.id);
                                                       return (
                                                         <button
                                                           key={tag.id}
                                                           onClick={() => toggleTodoTag(todoId, tag.id)}
-                                                          className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors flex items-center gap-2"
+                                                          className="w-full text-left px-2 py-1.5 text-xs flex items-center gap-2 rounded hover:bg-muted transition-colors"
                                                         >
                                                           <div className={`w-3 h-3 rounded flex items-center justify-center border ${hasTag ? 'bg-primary border-primary text-primary-foreground' : 'border-input'}`}>
                                                             {hasTag && <Check size={8} />}
                                                           </div>
                                                           <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
-                                                          <span className="truncate">{tag.name}</span>
+                                                          <span className="flex-1 truncate">{tag.name}</span>
                                                         </button>
                                                       );
                                                     })}
-                                                    {projectTags.length === 0 && (
-                                                      <div className="px-3 py-1.5 text-xs text-muted-foreground italic">No project tags yet</div>
-                                                    )}
                                                   </div>
-                                                </div>
-                                              </>
-                                            )}
-                                          </div>
+                                                </PopoverContent>
+                                              </Popover>
+                                            </>
+                                          )}
                                         </div>
                                       )}
                                     </div>
