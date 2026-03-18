@@ -351,7 +351,7 @@ async function updateNote(supabase, id, body, ownerId) {
     updateContentTodoIds(updatedContent, taskItems);
   }
 
-  await supabase.from('notes').update({
+  const { error: updateError } = await supabase.from('notes').update({
     title: title !== undefined ? title : existing.title,
     content: updatedContent !== undefined ? updatedContent : existing.content,
     updated_at: now(),
@@ -361,6 +361,7 @@ async function updateNote(supabase, id, body, ownerId) {
     ...(summary !== undefined && { summary }),
     ...(ai_action_items !== undefined && { ai_action_items }),
   }).eq('id', id);
+  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
 
   if (tagIds !== undefined) {
     await supabase.from('note_tags').delete().eq('note_id', id);

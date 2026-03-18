@@ -1037,16 +1037,17 @@ export default function App() {
       });
       if (!result.ok) throw new Error(await result.text());
       const { sections, action_items } = await result.json();
-      // Persist to DB FIRST — UI update only after confirmed save so a page refresh never loses data
+      // Persist to DB FIRST — use the server response to set local state so UI always matches DB
+      let saved;
       try {
-        await api(`notes/${noteId}`, { method: 'PUT', body: JSON.stringify({ summary: sections, ai_action_items: action_items }) });
+        saved = await api(`notes/${noteId}`, { method: 'PUT', body: JSON.stringify({ summary: sections, ai_action_items: action_items }) });
       } catch (e) {
         console.error('Failed to persist summary:', e);
         toast.error('Failed to save summary. Please try again.');
         return;
       }
-      setEditingNote(prev => ({ ...prev, summary: sections, ai_action_items: action_items }));
-      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, summary: sections, ai_action_items: action_items } : n));
+      setEditingNote(prev => prev?.id === noteId ? { ...saved, content: prev.content, title: prev.title } : prev);
+      setNotes(prev => prev.map(n => n.id === noteId ? { ...saved, content: n.content, title: n.title } : n));
       toast.success('AI summary ready');
     } catch (e) {
       console.error('Failed to generate summary:', e);
