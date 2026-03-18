@@ -1030,11 +1030,13 @@ export default function App() {
       setEditingNote(prev => ({ ...prev, summary: sections, ai_action_items }));
       setNotes(prev => prev.map(n => n.id === noteId ? { ...n, summary: sections, ai_action_items } : n));
       toast.success('AI summary ready');
-      // Persist to DB separately — don't let this failure affect the UI
-      api(`notes/${noteId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ summary: sections, ai_action_items }),
-      }).catch(e => console.error('Failed to persist summary to DB:', e));
+      // Persist to DB — await so that any subsequent loadNotes() sees the latest data
+      try {
+        await api(`notes/${noteId}`, {
+          method: 'PUT',
+          body: JSON.stringify({ summary: sections, ai_action_items }),
+        });
+      } catch (e) { console.error('Failed to persist summary to DB:', e); }
     } catch (e) {
       console.error('Failed to generate summary:', e);
       toast.error(`AI summary failed: ${e.message}`);
@@ -1076,8 +1078,8 @@ export default function App() {
     const items = editingNote.ai_action_items || [];
     const item = items.find(i => i.id === itemId);
     if (!item || item.claimed) return;
-    // Create real todo linked to this note
-    const todo = await createTodo(item.text, noteId, editingNote.tags?.map(t => t.id) || []);
+    // Create real todo linked to this note — skip loadNotes to avoid overwriting unsaved AI state
+    const todo = await createTodo(item.text, noteId, editingNote.tags?.map(t => t.id) || [], { skipNoteReload: true });
     // Even if todo response is missing (network hiccup), the todo was likely created in DB.
     // Mark claimed regardless and store the id if we have it.
     toast.success('Added to your To-Do list');
@@ -1095,13 +1097,20 @@ export default function App() {
     const items = editingNote.ai_action_items || [];
     const item = items.find(i => i.id === itemId);
     if (!item || !item.claimed) return;
-    // Delete the linked todo if we have its id (inline to avoid dependency ordering issues)
-    if (item.todo_id) {
+    // Delete the linked todo — use todo_id if available, else fall back to matching by text+note
+    let todoIdToDelete = item.todo_id;
+    if (!todoIdToDelete) {
+      const match = todos.find(t => t.note_id === noteId && t.text === item.text);
+      todoIdToDelete = match?.id || null;
+    }
+    if (todoIdToDelete) {
       try {
-        await api(`todos/${item.todo_id}`, { method: 'DELETE' });
-        setTodos(prev => prev.filter(t => t.id !== item.todo_id));
+        await api(`todos/${todoIdToDelete}`, { method: 'DELETE' });
+        setTodos(prev => prev.filter(t => t.id !== todoIdToDelete));
       } catch (e) { console.error('Failed to delete todo:', e); }
     }
+    // Refresh todos panel count
+    loadTodos();
     // Reset to unclaimed
     const updated = items.map(i => i.id === itemId ? { ...i, claimed: false, todo_id: null } : i);
     setEditingNote(prev => ({ ...prev, ai_action_items: updated }));
@@ -1109,7 +1118,7 @@ export default function App() {
     try {
       await api(`notes/${noteId}`, { method: 'PUT', body: JSON.stringify({ ai_action_items: updated }) });
     } catch (e) { console.error('Failed to update ai_action_items:', e); }
-  }, [editingNote]);
+  }, [editingNote, todos, loadTodos]);
 
   const handleTranscriptChange = useCallback(async (newTranscript) => {
     if (!editingNote) return;
@@ -1138,7 +1147,7 @@ export default function App() {
       });
       setTodos(prev => [...prev, todo]);
       setNewTodoText('');
-      if (noteId) loadNotes();
+      if (noteId && !options.skipNoteReload) loadNotes();
       return todo;
     } catch (e) { console.error('Create todo error:', e); }
   };
@@ -2051,14 +2060,15 @@ export default function App() {
                         Action Items
                       </div>
                       {(() => {
-                        const actionItems = extractActionItems(editingNote.content);
-                        if (actionItems.length === 0) {
+                        const editorItems = extractActionItems(editingNote.content);
+                        const aiClaimed = (editingNote.ai_action_items || []).filter(i => i.claimed);
+                        if (editorItems.length === 0 && aiClaimed.length === 0) {
                           return <p className="text-xs text-muted-foreground italic">No action items found in this note.</p>;
                         }
                         return (
                           <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                            {actionItems.map((item, idx) => (
-                              <div key={idx} className="flex items-start gap-2 text-[13px] leading-tight group">
+                            {editorItems.map((item, idx) => (
+                              <div key={`ed-${idx}`} className="flex items-start gap-2 text-[13px] leading-tight">
                                 <span className="mt-0.5 text-muted-foreground/70 pointer-events-none">
                                   {item.isChecked ? <CheckSquare size={13} className="text-primary/70" /> : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/50" />}
                                 </span>
@@ -2067,6 +2077,23 @@ export default function App() {
                                 </span>
                               </div>
                             ))}
+                            {aiClaimed.map(item => {
+                              const linkedTodo = item.todo_id ? todos.find(t => t.id === item.todo_id) : todos.find(t => t.note_id === editingNote.id && t.text === item.text);
+                              const isDone = linkedTodo?.is_done;
+                              return (
+                                <div key={`ai-${item.id}`} className="flex items-start gap-2 text-[13px] leading-tight">
+                                  <span className="mt-0.5 text-muted-foreground/70 pointer-events-none">
+                                    {isDone
+                                      ? <CheckSquare size={13} className="text-primary/50" />
+                                      : <div className="w-[13px] h-[13px] rounded-[3px] border-2 border-primary bg-primary/10" />}
+                                  </span>
+                                  <span className={`flex-1 ${isDone ? 'line-through text-muted-foreground/50' : 'text-foreground'}`}>
+                                    {item.text}
+                                    {item.speaker && <span className="ml-1.5 text-[11px] text-muted-foreground/40 font-normal not-italic">— {item.speaker}</span>}
+                                  </span>
+                                </div>
+                              );
+                            })}
                           </div>
                         );
                       })()}
@@ -2099,27 +2126,26 @@ export default function App() {
                     {/* ── NOTES TAB ── */}
                     {noteTab === 'notes' && (
                       <>
-                        {/* Actions from Summary — only AI-claimed todos */}
+                        {/* Actions from Summary — AI-claimed items, driven by ai_action_items state */}
                         {(() => {
-                          const aiTodoIds = new Set(
-                            (editingNote.ai_action_items || [])
-                              .filter(i => i.claimed && i.todo_id)
-                              .map(i => i.todo_id)
-                          );
-                          const linked = todos.filter(t => aiTodoIds.has(t.id));
-                          if (!linked.length) return null;
+                          const claimedItems = (editingNote.ai_action_items || []).filter(i => i.claimed);
+                          if (!claimedItems.length) return null;
                           return (
                             <div className="mb-4 pb-4 border-b">
                               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Actions from Summary</p>
                               <div className="space-y-1">
-                                {linked.map(t => (
-                                  <div key={t.id} className="flex items-center gap-2 text-[13px]">
-                                    {t.is_done
-                                      ? <CheckSquare size={13} className="text-primary/50 flex-shrink-0" />
-                                      : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30 flex-shrink-0" />}
-                                    <span className={t.is_done ? 'line-through text-muted-foreground/50' : 'text-foreground'}>{t.text}</span>
-                                  </div>
-                                ))}
+                                {claimedItems.map(item => {
+                                  const linkedTodo = item.todo_id ? todos.find(t => t.id === item.todo_id) : todos.find(t => t.note_id === editingNote.id && t.text === item.text);
+                                  const isDone = linkedTodo?.is_done || false;
+                                  return (
+                                    <div key={item.id} className="flex items-center gap-2 text-[13px]">
+                                      {isDone
+                                        ? <CheckSquare size={13} className="text-primary/50 flex-shrink-0" />
+                                        : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30 flex-shrink-0" />}
+                                      <span className={isDone ? 'line-through text-muted-foreground/50' : 'text-foreground'}>{item.text}</span>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           );
@@ -2181,7 +2207,7 @@ export default function App() {
                                           {isDone
                                             ? <CheckSquare size={13} className="text-primary/50" />
                                             : item.claimed
-                                              ? <CheckSquare size={13} className="text-primary" />
+                                              ? <div className="w-[13px] h-[13px] rounded-[3px] border-2 border-primary bg-primary/10" />
                                               : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30" />}
                                         </span>
                                         <span className={`flex-1 ${isDone ? 'line-through text-muted-foreground/40' : item.claimed ? 'text-foreground font-semibold' : 'text-muted-foreground/60 italic'}`}>
