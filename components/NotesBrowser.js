@@ -385,11 +385,13 @@ export default function NotesBrowser({
                                 <div className="space-y-2">
                                     {group.notes.map(note => {
                                         const isSelected = selectedNoteId === note.id;
+                                        const noteTagColor = note.tags?.find(t => t.type === 'project')?.color || note.tags?.[0]?.color;
                                         return (
                                             <div
                                                 key={note.id}
                                                 onClick={() => { setSelectedNoteId(note.id); setEditingNote(note); setTagDropdownNoteId(null); }}
-                                                className={`border rounded-lg transition-all cursor-pointer ${isSelected ? 'ring-2 ring-primary/20 border-primary/30 bg-accent/30' : 'hover:border-primary/20 hover:bg-accent/10'}`}
+                                                className={`border rounded-lg transition-all cursor-pointer overflow-hidden ${isSelected ? 'ring-2 ring-primary/20 border-primary/30 bg-accent/30' : 'hover:border-primary/20 hover:bg-accent/10'}`}
+                                                style={noteTagColor ? { borderLeftColor: noteTagColor, borderLeftWidth: '3px' } : {}}
                                             >
                                                 <div className="px-4 py-3 flex items-start justify-between">
                                                     <div className="flex-1 min-w-0">

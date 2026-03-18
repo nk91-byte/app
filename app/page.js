@@ -2146,8 +2146,8 @@ export default function App() {
                           const claimedItems = (editingNote.ai_action_items || []).filter(i => i.claimed);
                           if (!claimedItems.length) return null;
                           return (
-                            <div className="mb-4 pb-4 border-b">
-                              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Actions from Summary</p>
+                            <div className="mb-4 pb-4 border-b pl-3 border-l-2 border-l-orange-400">
+                              <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-500 mb-2">Actions from Summary</p>
                               <div className="space-y-1">
                                 {claimedItems.map(item => {
                                   const linkedTodo = item.todo_id ? todos.find(t => t.id === item.todo_id) : todos.find(t => t.note_id === editingNote.id && t.text === item.text);
@@ -2294,12 +2294,12 @@ export default function App() {
                             {/* Summary sections */}
                             <div className="space-y-3">
                               {editingNote.summary.map((section, si) => (
-                                <div key={si}>
-                                  <p className="text-[12px] font-semibold text-foreground/90 mb-1">{section.title}</p>
+                                <div key={si} className="pl-3 border-l-2 border-l-orange-400/60">
+                                  <p className="text-[12px] font-semibold text-orange-600 mb-1">{section.title}</p>
                                   <ul className="space-y-0.5">
                                     {section.points.map((point, pi) => (
                                       <li key={pi} className="flex gap-2 text-[13px] text-foreground/75 leading-snug">
-                                        <span className="mt-1.5 w-1 h-1 rounded-full bg-muted-foreground/40 flex-shrink-0" />
+                                        <span className="mt-1.5 w-1 h-1 rounded-full bg-orange-400/50 flex-shrink-0" />
                                         {point}
                                       </li>
                                     ))}
@@ -2310,7 +2310,7 @@ export default function App() {
                             {/* Action items */}
                             {editingNote.ai_action_items?.length > 0 && (
                               <div className="pt-2 border-t">
-                                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Action Items</p>
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-500 mb-1.5">Action Items</p>
                                 <div className="space-y-1.5">
                                   {editingNote.ai_action_items.map(item => {
                                     const linkedTodo = item.todo_id ? todos.find(t => t.id === item.todo_id) : null;
