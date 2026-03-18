@@ -1062,8 +1062,9 @@ export default function App() {
       setEditingNote(prev => ({ ...prev, summary: sections, ai_action_items: action_items }));
       setNotes(prev => prev.map(n => n.id === noteId ? { ...n, summary: sections, ai_action_items: action_items } : n));
       toast.success('AI summary ready');
-      api(`notes/${noteId}`, { method: 'PUT', body: JSON.stringify({ summary: sections, ai_action_items: action_items }) })
-        .catch(e => console.error('Failed to persist summary:', e));
+      try {
+        await api(`notes/${noteId}`, { method: 'PUT', body: JSON.stringify({ summary: sections, ai_action_items: action_items }) });
+      } catch (e) { console.error('Failed to persist summary:', e); }
     } catch (e) {
       console.error('Failed to generate summary:', e);
       toast.error(`AI summary failed: ${e.message}`);
@@ -1796,7 +1797,11 @@ export default function App() {
                         viewLayout={viewLayout}
                         selectedNoteId={selectedNoteId}
                         setSelectedNoteId={setSelectedNoteId}
-                        setEditingNote={setEditingNote}
+                        setEditingNote={(note) => {
+                          // Don't overwrite in-memory editingNote when re-clicking the already-open note
+                          // (avoids wiping unsaved AI summary/transcript from local state)
+                          setEditingNote(prev => prev?.id === note.id ? prev : note);
+                        }}
                         setTagDropdownNoteId={setTagDropdownNoteId}
                         formatDate={formatDate}
                         extractActionItems={extractActionItems}
