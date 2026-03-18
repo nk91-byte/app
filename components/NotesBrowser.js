@@ -219,10 +219,11 @@ export default function NotesBrowser({
                                                                 </div>
                                                             )}
                                                             {visibleFields?.includes('actionItems') && (() => {
-                                                                const actionItems = extractActionItems(note.content);
-                                                                if (actionItems.length === 0) return null;
-                                                                const totalCount = actionItems.length;
-                                                                const completedCount = actionItems.filter(t => t.isChecked).length;
+                                                                const editorItems = extractActionItems(note.content);
+                                                                const aiClaimed = (note.ai_action_items || []).filter(i => i.claimed);
+                                                                const totalCount = editorItems.length + aiClaimed.length;
+                                                                if (totalCount === 0) return null;
+                                                                const completedCount = editorItems.filter(t => t.isChecked).length + aiClaimed.filter(i => i.is_done).length;
                                                                 return (
                                                                     <div className="flex items-center gap-1 px-1 py-0.5 rounded text-[10px] font-medium bg-muted/60 text-muted-foreground">
                                                                         <CheckSquare size={9} />
@@ -408,10 +409,11 @@ export default function NotesBrowser({
                                                                 </span>
                                                             )}
                                                             {visibleFields?.includes('actionItems') && (() => {
-                                                                const actionItems = extractActionItems(note.content);
-                                                                if (actionItems.length === 0) return null;
-                                                                const totalCount = actionItems.length;
-                                                                const completedCount = actionItems.filter(t => t.isChecked).length;
+                                                                const editorItems = extractActionItems(note.content);
+                                                                const aiClaimed = (note.ai_action_items || []).filter(i => i.claimed);
+                                                                const totalCount = editorItems.length + aiClaimed.length;
+                                                                if (totalCount === 0) return null;
+                                                                const completedCount = editorItems.filter(t => t.isChecked).length + aiClaimed.filter(i => i.is_done).length;
                                                                 return (
                                                                     <span className="text-[11px] flex items-center gap-1 px-1.5 py-0.5 rounded font-medium bg-muted/60 text-muted-foreground">
                                                                         <CheckSquare size={10} />

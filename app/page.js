@@ -1189,6 +1189,18 @@ export default function App() {
         if (t.parent_todo_id === todoId && todo.is_done) return { ...t, is_done: true, done_at: new Date().toISOString() };
         return t;
       }));
+      // Sync is_done into editingNote.ai_action_items so Summary tab reflects done state
+      // without needing the todo to be in the current paginated todos list
+      setEditingNote(prev => {
+        if (!prev?.ai_action_items) return prev;
+        const hasLinked = prev.ai_action_items.some(i => i.todo_id === todoId);
+        if (!hasLinked) return prev;
+        const updated = prev.ai_action_items.map(i => i.todo_id === todoId ? { ...i, is_done: todo.is_done } : i);
+        // Persist silently
+        api(`notes/${prev.id}`, { method: 'PUT', body: JSON.stringify({ ai_action_items: updated }) })
+          .catch(e => console.error('Failed to sync ai_action_items is_done:', e));
+        return { ...prev, ai_action_items: updated };
+      });
       if (todo.is_done) {
         toast('Action marked as done', {
           duration: 10000,
@@ -2084,14 +2096,19 @@ export default function App() {
                             ))}
                             {aiClaimed.map(item => {
                               const linkedTodo = item.todo_id ? todos.find(t => t.id === item.todo_id) : todos.find(t => t.note_id === editingNote.id && t.text === item.text);
-                              const isDone = linkedTodo?.is_done;
+                              const isDone = item.is_done ?? linkedTodo?.is_done ?? false;
+                              const todoId = item.todo_id || linkedTodo?.id;
                               return (
                                 <div key={`ai-${item.id}`} className="flex items-start gap-2 text-[13px] leading-tight">
-                                  <span className="mt-0.5 text-muted-foreground/70 pointer-events-none">
+                                  <button
+                                    onClick={() => todoId && toggleTodo(todoId)}
+                                    className={`mt-0.5 flex-shrink-0 transition-colors ${todoId ? 'cursor-pointer hover:opacity-70' : 'cursor-default opacity-50'}`}
+                                    title={isDone ? 'Mark as open' : 'Mark as done'}
+                                  >
                                     {isDone
                                       ? <CheckSquare size={13} className="text-primary/50" />
                                       : <div className="w-[13px] h-[13px] rounded-[3px] border-2 border-primary bg-primary/10" />}
-                                  </span>
+                                  </button>
                                   <span className={`flex-1 ${isDone ? 'line-through text-muted-foreground/50' : 'text-foreground'}`}>
                                     {item.text}
                                     {item.speaker && <span className="ml-1.5 text-[11px] text-muted-foreground/40 font-normal not-italic">— {item.speaker}</span>}
@@ -2141,12 +2158,19 @@ export default function App() {
                               <div className="space-y-1">
                                 {claimedItems.map(item => {
                                   const linkedTodo = item.todo_id ? todos.find(t => t.id === item.todo_id) : todos.find(t => t.note_id === editingNote.id && t.text === item.text);
-                                  const isDone = linkedTodo?.is_done || false;
+                                  const isDone = item.is_done ?? linkedTodo?.is_done ?? false;
+                                  const todoId = item.todo_id || linkedTodo?.id;
                                   return (
                                     <div key={item.id} className="flex items-center gap-2 text-[13px]">
-                                      {isDone
-                                        ? <CheckSquare size={13} className="text-primary/50 flex-shrink-0" />
-                                        : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30 flex-shrink-0" />}
+                                      <button
+                                        onClick={() => todoId && toggleTodo(todoId)}
+                                        className={`flex-shrink-0 transition-colors ${todoId ? 'cursor-pointer hover:opacity-70' : 'cursor-default opacity-50'}`}
+                                        title={isDone ? 'Mark as open' : 'Mark as done'}
+                                      >
+                                        {isDone
+                                          ? <CheckSquare size={13} className="text-primary/50" />
+                                          : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30" />}
+                                      </button>
                                       <span className={isDone ? 'line-through text-muted-foreground/50' : 'text-foreground'}>{item.text}</span>
                                     </div>
                                   );
@@ -2205,7 +2229,7 @@ export default function App() {
                                 <div className="space-y-1.5">
                                   {editingNote.ai_action_items.map(item => {
                                     const linkedTodo = item.todo_id ? todos.find(t => t.id === item.todo_id) : null;
-                                    const isDone = linkedTodo?.is_done;
+                                    const isDone = item.is_done ?? linkedTodo?.is_done ?? false;
                                     return (
                                       <div key={item.id} className="flex items-center gap-2 text-[13px] leading-tight rounded-md px-2 py-1.5 transition-colors hover:bg-muted/30">
                                         <span className="flex-shrink-0">
