@@ -952,7 +952,13 @@ export default function App() {
         method: 'PUT',
         body: JSON.stringify({ title, content, tags: tagIds, created_at }),
       });
-      setNotes(prev => prev.map(n => n.id === noteId ? { ...updated, content: n.content, title: n.title } : n));
+      setNotes(prev => prev.map(n => n.id === noteId ? {
+        ...updated,
+        content: n.content,
+        title: n.title,
+        summary: n.summary ?? updated.summary,
+        ai_action_items: n.ai_action_items ?? updated.ai_action_items,
+      } : n));
       // Preserve AI fields managed by their own API calls — saveNote only touches title/content/tags
       setEditingNote(prev => prev?.id === noteId ? {
         ...updated,
@@ -1031,15 +1037,17 @@ export default function App() {
       });
       if (!result.ok) throw new Error(await result.text());
       const { sections, action_items } = await result.json();
-      setEditingNote(prev => ({ ...prev, summary: sections, ai_action_items: action_items }));
-      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, summary: sections, ai_action_items: action_items } : n));
-      toast.success('AI summary ready');
+      // Persist to DB FIRST — UI update only after confirmed save so a page refresh never loses data
       try {
         await api(`notes/${noteId}`, { method: 'PUT', body: JSON.stringify({ summary: sections, ai_action_items: action_items }) });
       } catch (e) {
         console.error('Failed to persist summary:', e);
-        toast.error('Summary generated but could not be saved — please try again');
+        toast.error('Failed to save summary. Please try again.');
+        return;
       }
+      setEditingNote(prev => ({ ...prev, summary: sections, ai_action_items: action_items }));
+      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, summary: sections, ai_action_items: action_items } : n));
+      toast.success('AI summary ready');
     } catch (e) {
       console.error('Failed to generate summary:', e);
       toast.error(`AI summary failed: ${e.message}`);
