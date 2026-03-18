@@ -953,7 +953,16 @@ export default function App() {
         body: JSON.stringify({ title, content, tags: tagIds, created_at }),
       });
       setNotes(prev => prev.map(n => n.id === noteId ? { ...updated, content: n.content, title: n.title } : n));
-      setEditingNote(prev => prev?.id === noteId ? { ...updated, content: prev.content, title: prev.title } : prev);
+      // Preserve AI fields managed by their own API calls — saveNote only touches title/content/tags
+      setEditingNote(prev => prev?.id === noteId ? {
+        ...updated,
+        content: prev.content,
+        title: prev.title,
+        summary: prev.summary,
+        ai_action_items: prev.ai_action_items,
+        transcript: prev.transcript,
+        transcript_status: prev.transcript_status,
+      } : prev);
       loadTodos();
       return updated;
     } catch (e) { console.error('Save note error:', e); }
