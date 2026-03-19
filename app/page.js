@@ -2042,7 +2042,7 @@ export default function App() {
                         handleNoteContentUpdate(editingNote.id, newTitle, editingNote.content, editingNote.tags?.map(t => t.id));
                       }}
                       placeholder="Note title"
-                      className="border-none text-base font-semibold px-0 h-auto focus-visible:ring-0 shadow-none flex-1"
+                      className="border-none text-base font-semibold px-0 h-auto focus-visible:ring-0 shadow-none flex-1 text-orange-500 placeholder:text-orange-300"
                     />
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button
