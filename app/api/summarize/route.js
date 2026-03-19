@@ -11,7 +11,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'ANTHROPIC_API_KEY is not configured' }, { status: 500 });
     }
 
-    const { transcript } = await request.json();
+    const { transcript, instruction } = await request.json();
     if (!transcript?.utterances?.length) {
       return NextResponse.json({ error: 'No transcript provided' }, { status: 400 });
     }
@@ -45,7 +45,7 @@ Rules:
 - If no clear action items exist, return an empty array
 - Use the speaker labels from the transcript (e.g. "Speaker A", "Speaker B")
 - Output raw JSON only — no markdown fences, no backticks, no preamble
-
+${instruction ? `\nAdditional instructions:\n${instruction}` : ''}
 Transcript:
 ${transcriptText}`,
         },

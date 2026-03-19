@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
     BookOpen, CheckSquare, Tag, ChevronRight,
-    PanelLeftClose, LogOut,
+    PanelLeftClose, LogOut, Settings,
     MoreHorizontal, Edit3, Trash2, Save, X, Check,
     LayoutGrid, List
 } from 'lucide-react';
@@ -110,6 +110,21 @@ export default function Sidebar({
                                 Tags
                             </TooltipContent>
                         </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={() => { setView('settings'); setSearchQuery(''); setSelectedTagIds([]); }}
+                                    className={`w-full flex items-center justify-center p-2 rounded-md transition-colors ${view === 'settings' ? '' : 'text-sidebar-foreground/60 hover:text-sidebar-foreground'
+                                        }`}
+                                    style={view === 'settings' ? { backgroundColor: '#5BA89D18', color: '#5BA89D' } : {}}
+                                >
+                                    <Settings size={18} className="text-primary" />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="font-medium">
+                                Settings
+                            </TooltipContent>
+                        </Tooltip>
                     </>
                 ) : (
                     <>
@@ -139,6 +154,15 @@ export default function Sidebar({
                         >
                             <Tag size={18} className="text-primary flex-shrink-0" />
                             <span>Tags</span>
+                        </button>
+                        <button
+                            onClick={() => { setView('settings'); setSearchQuery(''); setSelectedTagIds([]); }}
+                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${view === 'settings' ? 'font-medium' : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
+                                }`}
+                            style={view === 'settings' ? { backgroundColor: '#5BA89D18', color: '#5BA89D' } : {}}
+                        >
+                            <Settings size={18} className="text-primary flex-shrink-0" />
+                            <span>Settings</span>
                         </button>
                     </>
                 )}

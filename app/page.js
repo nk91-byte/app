@@ -18,7 +18,7 @@ import {
   BookOpen, CheckSquare, Plus, Search, X, Tag, ChevronDown, ChevronRight, Check,
   Trash2, Archive, ArchiveRestore, Edit3, Save, FileText, Clock, MoreHorizontal,
   Loader2, Palette, StickyNote, PanelLeftClose, PanelLeft, Filter, LayoutGrid,
-  Calendar as CalendarIcon, FolderOpen, CircleDot, GripVertical, List, Columns3, Type, ListTodo, EyeOff, Repeat, Maximize2, Minimize2
+  Calendar as CalendarIcon, FolderOpen, CircleDot, GripVertical, List, Columns3, Type, ListTodo, EyeOff, Repeat, Maximize2, Minimize2, Star
 } from 'lucide-react';
 import React from 'react'; // Added React import for ErrorBoundary
 import Sidebar from '@/components/Sidebar';
@@ -27,6 +27,7 @@ import NotesBrowser from '@/components/NotesBrowser';
 import TodosBrowser from '@/components/TodosBrowser';
 import TodoDetailPanel from '@/components/TodoDetailPanel';
 import TagsManagement from '@/components/TagsManagement';
+import SettingsPanel from '@/components/SettingsPanel';
 import QuickAddModal from '@/components/QuickAddModal';
 import RecordingControls from '@/components/RecordingControls';
 import TranscriptViewer from '@/components/TranscriptViewer';
@@ -506,6 +507,9 @@ export default function App() {
   const [selectedNoteId, setSelectedNoteId] = useState(null);
   const [noteTab, setNoteTab] = useState('notes'); // 'notes' | 'summary' | 'transcript'
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [summaryPresets, setSummaryPresets] = useState([]); // [{ id, name, instruction }]
+  const [defaultPresetId, setDefaultPresetId] = useState(null);
+  const [showGenerateDropdown, setShowGenerateDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState([]);
   const [todoFilters, setTodoFilters] = useState(['open']);
@@ -624,6 +628,19 @@ export default function App() {
       console.error('Save todo views error:', e);
     }
   };
+
+  const saveSummaryPresets = useCallback(async (presets, newDefaultId) => {
+    setSummaryPresets(presets);
+    setDefaultPresetId(newDefaultId);
+    try {
+      await api('preferences/summary_instructions', {
+        method: 'PUT',
+        body: JSON.stringify({ value: { presets, default_id: newDefaultId } })
+      });
+    } catch (e) {
+      console.error('Save summary presets error:', e);
+    }
+  }, []);
 
   // Notebook saved views
   const saveCurrentNotebookView = (name, selectedViewLayout) => {
@@ -815,6 +832,10 @@ export default function App() {
       if (prefs.notebook_saved_views) setNotebookSavedViews(prefs.notebook_saved_views);
       if (prefs.todo_saved_views) setTodoSavedViews(prefs.todo_saved_views);
       if (prefs.board_column_size) setBoardColumnSize(prefs.board_column_size);
+      if (prefs.summary_instructions) {
+        setSummaryPresets(prefs.summary_instructions.presets || []);
+        setDefaultPresetId(prefs.summary_instructions.default_id || null);
+      }
     } catch (e) {
       console.error('Load preferences error:', e);
     }
@@ -1028,32 +1049,38 @@ export default function App() {
     toast.success('Transcript ready — go to Summary tab to generate an AI summary');
   }, [editingNote]);
 
-  const retrySummary = useCallback(async () => {
+  const retrySummary = useCallback(async (preset = null) => {
     if (!editingNote?.transcript) return;
     const noteId = editingNote.id;
     const transcript = editingNote.transcript;
     setIsGeneratingSummary(true);
+    setShowGenerateDropdown(false);
     toast('Generating AI summary…', { duration: 5000 });
     try {
       const result = await fetch('/api/summarize', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ transcript }),
+        body: JSON.stringify({ transcript, instruction: preset?.instruction || null }),
       });
       if (!result.ok) throw new Error(await result.text());
       const { sections, action_items } = await result.json();
-      // Persist to DB FIRST — use the server response to set local state so UI always matches DB
+      const summaryData = {
+        sections,
+        preset_name: preset?.name || null,
+        preset_instruction: preset?.instruction || null,
+      };
+      // Persist to DB FIRST
       let saved;
       try {
-        saved = await api(`notes/${noteId}`, { method: 'PUT', body: JSON.stringify({ summary: sections, ai_action_items: action_items }) });
+        saved = await api(`notes/${noteId}`, { method: 'PUT', body: JSON.stringify({ summary: summaryData, ai_action_items: action_items }) });
       } catch (e) {
         console.error('Failed to persist summary:', e);
         toast.error('Failed to save summary. Please try again.');
         return;
       }
-      // Use sections/action_items (actual arrays) for display — saved provides all other DB fields
-      setEditingNote(prev => prev?.id === noteId ? { ...saved, summary: sections, ai_action_items: action_items, content: prev.content, title: prev.title } : prev);
-      setNotes(prev => prev.map(n => n.id === noteId ? { ...saved, summary: sections, ai_action_items: action_items, content: n.content, title: n.title } : n));
+      // Use summaryData (with actual arrays) for display
+      setEditingNote(prev => prev?.id === noteId ? { ...saved, summary: summaryData, ai_action_items: action_items, content: prev.content, title: prev.title } : prev);
+      setNotes(prev => prev.map(n => n.id === noteId ? { ...saved, summary: summaryData, ai_action_items: action_items, content: n.content, title: n.title } : n));
       toast.success('AI summary ready');
     } catch (e) {
       console.error('Failed to generate summary:', e);
@@ -1761,7 +1788,14 @@ export default function App() {
             {/* ===== CONTENT AREA ===== */}
             <div className="flex-1 flex overflow-hidden min-h-0">
               {/* ===== MIDDLE: Notes/Todos Browser/Tags ===== */}
-              {view === 'tags' ? (
+              {view === 'settings' ? (
+                /* ===== SETTINGS VIEW ===== */
+                <SettingsPanel
+                  summaryPresets={summaryPresets}
+                  defaultPresetId={defaultPresetId}
+                  onSavePresets={saveSummaryPresets}
+                />
+              ) : view === 'tags' ? (
                 /* ===== TAGS MANAGEMENT VIEW ===== */
                 <TagsManagement
                   sourceTags={sourceTags}
@@ -2309,97 +2343,150 @@ export default function App() {
                     )}
 
                     {/* ── SUMMARY TAB ── */}
-                    {noteTab === 'summary' && (
-                      <div className="space-y-4">
-                        {isGeneratingSummary ? (
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2">
-                            <Loader2 size={12} className="animate-spin" />
-                            Generating AI summary…
-                          </div>
-                        ) : (Array.isArray(editingNote.summary) && editingNote.summary.length > 0) ? (
-                          <>
-                            {/* Action items — top */}
-                            {editingNote.ai_action_items?.length > 0 && (
-                              <div className="pb-3 border-b">
-                                <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-500 mb-1.5">Action Items</p>
-                                <div className="space-y-0.5">
-                                  {editingNote.ai_action_items.map(item => {
-                                    const linkedTodo = item.todo_id ? todos.find(t => t.id === item.todo_id) : null;
-                                    const isDone = item.is_done ?? linkedTodo?.is_done ?? false;
-                                    return (
-                                      <div key={item.id} className="flex items-center gap-2 text-[13px] leading-tight rounded-md px-2 py-0.5 transition-colors hover:bg-muted/30">
-                                        <span className="flex-shrink-0">
-                                          {isDone
-                                            ? <CheckSquare size={13} className="text-primary/50" />
-                                            : item.claimed
-                                              ? <div className="w-[13px] h-[13px] rounded-[3px] border border-muted-foreground/30" />
-                                              : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30" />}
-                                        </span>
-                                        <span className={`flex-1 ${isDone ? 'line-through text-muted-foreground/40' : item.claimed ? 'text-foreground' : 'text-muted-foreground/60 italic'}`}>
-                                          {item.text}
-                                          {item.speaker && <span className="ml-1.5 text-[11px] text-muted-foreground/40 font-normal not-italic">— {item.speaker}</span>}
-                                        </span>
-                                        {!item.claimed && (
-                                          <button
-                                            onClick={() => claimAiActionItem(item.id)}
-                                            className="flex-shrink-0 text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors font-medium"
-                                            title="Add to your To-Do list"
-                                          >
-                                            + Add
-                                          </button>
-                                        )}
-                                        {item.claimed && !isDone && (
-                                          <button
-                                            onClick={() => unclaimAiActionItem(item.id)}
-                                            className="flex-shrink-0 text-[11px] px-1.5 py-0.5 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                                            title="Remove from To-Do list"
-                                          >
-                                            Undo
-                                          </button>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
+                    {noteTab === 'summary' && (() => {
+                      // Support both old format (plain array) and new format ({ sections, preset_name, preset_instruction })
+                      const rawSummary = editingNote.summary;
+                      const summarySections = Array.isArray(rawSummary) ? rawSummary : (rawSummary?.sections || []);
+                      const summaryPresetName = !Array.isArray(rawSummary) ? (rawSummary?.preset_name || null) : null;
+                      const hasSummary = summarySections.length > 0;
+
+                      const generateDropdown = editingNote.transcript?.utterances?.length > 0 && (
+                        <div className="relative inline-flex">
+                          <button
+                            onClick={() => setShowGenerateDropdown(v => !v)}
+                            className="flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium"
+                          >
+                            {hasSummary ? 'Regenerate' : 'Generate AI summary'}
+                            <ChevronDown size={11} className="ml-0.5" />
+                          </button>
+                          {showGenerateDropdown && (
+                            <>
+                              <div className="fixed inset-0 z-[9998]" onClick={() => setShowGenerateDropdown(false)} />
+                              <div className="absolute left-0 top-full mt-1 bg-popover border rounded-lg shadow-lg py-1 min-w-[180px] z-[9999]">
+                                <button
+                                  onClick={() => retrySummary(null)}
+                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted flex items-center gap-1.5"
+                                >
+                                  {!defaultPresetId ? <Star size={10} className="text-primary flex-shrink-0" fill="currentColor" /> : <span className="w-[10px] flex-shrink-0" />}
+                                  <span>Default</span>
+                                </button>
+                                {summaryPresets.map(p => (
+                                  <button
+                                    key={p.id}
+                                    onClick={() => retrySummary(p)}
+                                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted flex items-center gap-1.5"
+                                  >
+                                    {defaultPresetId === p.id ? <Star size={10} className="text-primary flex-shrink-0" fill="currentColor" /> : <span className="w-[10px] flex-shrink-0" />}
+                                    <span className="truncate">{p.name}</span>
+                                  </button>
+                                ))}
+                                {summaryPresets.length === 0 && (
+                                  <p className="px-3 py-1.5 text-[11px] text-muted-foreground italic">No presets — add in Settings.</p>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+
+                      return (
+                        <div className="space-y-4">
+                          {isGeneratingSummary ? (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2">
+                              <Loader2 size={12} className="animate-spin" />
+                              Generating AI summary…
+                            </div>
+                          ) : hasSummary ? (
+                            <>
+                              {/* Action items — top */}
+                              {editingNote.ai_action_items?.length > 0 && (
+                                <div className="pb-3 border-b">
+                                  <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-500 mb-1.5">Action Items</p>
+                                  <div className="space-y-0.5">
+                                    {editingNote.ai_action_items.map(item => {
+                                      const linkedTodo = item.todo_id ? todos.find(t => t.id === item.todo_id) : null;
+                                      const isDone = item.is_done ?? linkedTodo?.is_done ?? false;
+                                      return (
+                                        <div key={item.id} className="flex items-center gap-2 text-[13px] leading-tight rounded-md px-2 py-0.5 transition-colors hover:bg-muted/30">
+                                          <span className="flex-shrink-0">
+                                            {isDone
+                                              ? <CheckSquare size={13} className="text-primary/50" />
+                                              : item.claimed
+                                                ? <div className="w-[13px] h-[13px] rounded-[3px] border border-muted-foreground/30" />
+                                                : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30" />}
+                                          </span>
+                                          <span className={`flex-1 ${isDone ? 'line-through text-muted-foreground/40' : item.claimed ? 'text-foreground' : 'text-muted-foreground/60 italic'}`}>
+                                            {item.text}
+                                            {item.speaker && <span className="ml-1.5 text-[11px] text-muted-foreground/40 font-normal not-italic">— {item.speaker}</span>}
+                                          </span>
+                                          {!item.claimed && (
+                                            <button
+                                              onClick={() => claimAiActionItem(item.id)}
+                                              className="flex-shrink-0 text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors font-medium"
+                                              title="Add to your To-Do list"
+                                            >
+                                              + Add
+                                            </button>
+                                          )}
+                                          {item.claimed && !isDone && (
+                                            <button
+                                              onClick={() => unclaimAiActionItem(item.id)}
+                                              className="flex-shrink-0 text-[11px] px-1.5 py-0.5 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                                              title="Remove from To-Do list"
+                                            >
+                                              Undo
+                                            </button>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                              {/* Summary sections */}
+                              <div className="space-y-3">
+                                {summarySections.map((section, si) => (
+                                  <div key={si}>
+                                    <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-500 mb-1">{section.title}</p>
+                                    <ul className="space-y-0.5">
+                                      {(section.points || []).map((point, pi) => (
+                                        <li key={pi} className="flex gap-2 text-[13px] text-foreground/75 leading-snug">
+                                          <span className="mt-1.5 w-1 h-1 rounded-full bg-muted-foreground/30 flex-shrink-0" />
+                                          {point}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                ))}
+                              </div>
+                              {/* Preset hint + regenerate */}
+                              <div className="flex items-center gap-3 pt-1 border-t mt-2">
+                                {summaryPresetName && (
+                                  <p className="text-[11px] text-muted-foreground/50 italic flex-1">
+                                    Generated with: {summaryPresetName}
+                                  </p>
+                                )}
+                                <div className={summaryPresetName ? '' : 'flex-1 flex justify-end'}>
+                                  {generateDropdown}
                                 </div>
                               </div>
-                            )}
-                            {/* Summary sections */}
-                            <div className="space-y-3">
-                              {editingNote.summary.map((section, si) => (
-                                <div key={si}>
-                                  <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-500 mb-1">{section.title}</p>
-                                  <ul className="space-y-0.5">
-                                    {section.points.map((point, pi) => (
-                                      <li key={pi} className="flex gap-2 text-[13px] text-foreground/75 leading-snug">
-                                        <span className="mt-1.5 w-1 h-1 rounded-full bg-muted-foreground/30 flex-shrink-0" />
-                                        {point}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              ))}
+                            </>
+                          ) : (
+                            /* Empty state */
+                            <div className="pt-2 space-y-2">
+                              {editingNote.transcript?.utterances?.length > 0 ? (
+                                <>
+                                  <p className="text-xs text-muted-foreground">No summary yet.</p>
+                                  {generateDropdown}
+                                </>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">Record or upload a meeting to generate a summary.</p>
+                              )}
                             </div>
-                          </>
-                        ) : (
-                          /* Empty state */
-                          <div className="pt-2 space-y-2">
-                            {editingNote.transcript?.utterances?.length > 0 ? (
-                              <>
-                                <p className="text-xs text-muted-foreground">No summary yet.</p>
-                                <button
-                                  onClick={retrySummary}
-                                  className="text-[11px] px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium"
-                                >
-                                  Generate AI summary
-                                </button>
-                              </>
-                            ) : (
-                              <p className="text-xs text-muted-foreground">Record or upload a meeting to generate a summary.</p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* ── TRANSCRIPT TAB ── */}
                     {noteTab === 'transcript' && (
