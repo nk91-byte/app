@@ -2291,25 +2291,9 @@ export default function App() {
                           </div>
                         ) : (Array.isArray(editingNote.summary) && editingNote.summary.length > 0) ? (
                           <>
-                            {/* Summary sections */}
-                            <div className="space-y-3">
-                              {editingNote.summary.map((section, si) => (
-                                <div key={si} className="pl-3 border-l-2 border-l-orange-400/60">
-                                  <p className="text-[12px] font-semibold text-orange-600 mb-1">{section.title}</p>
-                                  <ul className="space-y-0.5">
-                                    {section.points.map((point, pi) => (
-                                      <li key={pi} className="flex gap-2 text-[13px] text-foreground/75 leading-snug">
-                                        <span className="mt-1.5 w-1 h-1 rounded-full bg-orange-400/50 flex-shrink-0" />
-                                        {point}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              ))}
-                            </div>
-                            {/* Action items */}
+                            {/* Action items — top */}
                             {editingNote.ai_action_items?.length > 0 && (
-                              <div className="pt-2 border-t">
+                              <div className="pb-3 border-b">
                                 <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-500 mb-1.5">Action Items</p>
                                 <div className="space-y-1.5">
                                   {editingNote.ai_action_items.map(item => {
@@ -2352,6 +2336,22 @@ export default function App() {
                                 </div>
                               </div>
                             )}
+                            {/* Summary sections */}
+                            <div className="space-y-3">
+                              {editingNote.summary.map((section, si) => (
+                                <div key={si}>
+                                  <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-500 mb-1">{section.title}</p>
+                                  <ul className="space-y-0.5">
+                                    {section.points.map((point, pi) => (
+                                      <li key={pi} className="flex gap-2 text-[13px] text-foreground/75 leading-snug">
+                                        <span className="mt-1.5 w-1 h-1 rounded-full bg-muted-foreground/30 flex-shrink-0" />
+                                        {point}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ))}
+                            </div>
                           </>
                         ) : (
                           /* Empty state */
