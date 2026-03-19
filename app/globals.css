@@ -202,10 +202,11 @@
   accent-color: hsl(var(--primary));
   margin: 0;
   padding: 0;
+  opacity: 0.35;
 }
 
 .tiptap ul[data-type="taskList"] li>label input[type="checkbox"]:checked {
-  accent-color: hsl(var(--muted-foreground));
+  accent-color: hsl(var(--primary));
   opacity: 0.5;
 }
 
