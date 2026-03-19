@@ -545,7 +545,7 @@ export default function NoteEditor({ content, onUpdate, placeholder, toolbarOpen
             className="absolute z-50 transition-all duration-75"
             style={{ top: menuPosition.top, right: 0 }}
           >
-            <div className="flex items-center gap-px p-px bg-popover/80 border border-border/20 rounded shadow-sm">
+            <div className="flex items-center gap-px p-px bg-primary/10 border border-primary/20 rounded shadow-sm">
               {!bubbleMenuExpanded ? (
                 <button
                   onClick={() => setBubbleMenuExpanded(true)}

@@ -555,6 +555,7 @@ export default function App() {
   const [todoTagPickerId, setTodoTagPickerId] = useState(null);
   const [aiActionTagPickerId, setAiActionTagPickerId] = useState(null);
   const [aiActionBubbleExpandedId, setAiActionBubbleExpandedId] = useState(null);
+  const [aiActionHoveredId, setAiActionHoveredId] = useState(null);
   const [newTodoTagIds, setNewTodoTagIds] = useState([]);
   const [collapsedGroups, setCollapsedGroups] = useState([]);
   const [collapsedNoteGroups, setCollapsedNoteGroups] = useState([]);
@@ -2155,7 +2156,7 @@ export default function App() {
                                   const todoId = item.todo_id || linkedTodo?.id;
                                   const projectTag = linkedTodo?.tags?.find(t => t.type === 'project');
                                   return (
-                                    <div key={item.id} className="flex items-center gap-2 text-[13px] group/airow">
+                                    <div key={item.id} className="flex items-center gap-2 text-[13px] py-0.5" onMouseEnter={() => setAiActionHoveredId(todoId)} onMouseLeave={() => setAiActionHoveredId(null)}>
                                       <button
                                         onClick={() => todoId && toggleTodo(todoId)}
                                         className={`flex-shrink-0 transition-colors ${todoId ? 'cursor-pointer hover:opacity-70' : 'cursor-default opacity-50'}`}
@@ -2182,7 +2183,7 @@ export default function App() {
                                         return <span className={`text-[10px] flex-shrink-0 ${color}`}>{due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>;
                                       })()}
                                       {todoId && (
-                                        <div className="flex items-center gap-px p-px bg-popover/80 border border-border/20 rounded shadow-sm opacity-0 group-hover/airow:opacity-100 transition-opacity flex-shrink-0">
+                                        <div className={`flex items-center gap-px p-px bg-primary/10 border border-primary/20 rounded shadow-sm transition-opacity flex-shrink-0 ${aiActionHoveredId === todoId || aiActionBubbleExpandedId === todoId ? 'opacity-100' : 'opacity-0'}`}>
                                           {aiActionBubbleExpandedId !== todoId ? (
                                             <button
                                               onClick={() => setAiActionBubbleExpandedId(todoId)}
