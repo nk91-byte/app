@@ -204,7 +204,7 @@ export default function NotesBrowser({
                                                 className={`border rounded-lg transition-all bg-background cursor-pointer ${isSelected ? 'ring-2 ring-primary/20 border-primary/30 shadow-sm' : 'hover:border-primary/20 hover:shadow-sm'}`}
                                             >
                                                 <div className="px-3 py-2.5">
-                                                    <h3 className="font-medium text-xs truncate">{note.title || 'Untitled'}</h3>
+                                                    <h3 className="font-medium text-xs truncate text-orange-500">{note.title || <span className="text-orange-300">Untitled</span>}</h3>
                                                     {visibleFields?.includes('preview') && note.content && (() => {
                                                         const parsed = typeof note.content === 'string' ? (() => { try { return JSON.parse(note.content); } catch { return null; } })() : note.content;
                                                         const preview = parsed ? getContentPreview(parsed) : (typeof note.content === 'string' ? note.content.replace(/<[^>]*>/g, '').slice(0, 100) : '');
@@ -395,8 +395,8 @@ export default function NotesBrowser({
                                             >
                                                 <div className="px-4 py-3 flex items-start justify-between">
                                                     <div className="flex-1 min-w-0">
-                                                        <h3 className="font-medium text-xs truncate">
-                                                            {note.title || <span className="text-muted-foreground italic">Untitled</span>}
+                                                        <h3 className="font-medium text-xs truncate text-orange-500">
+                                                            {note.title || <span className="text-orange-300 italic">Untitled</span>}
                                                         </h3>
                                                         {visibleFields?.includes('preview') && note.content && (() => {
                                                             const parsed = typeof note.content === 'string' ? (() => { try { return JSON.parse(note.content); } catch { return null; } })() : note.content;
