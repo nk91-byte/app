@@ -468,7 +468,8 @@ async function createTodo(supabase, body, ownerId) {
   const { error } = await supabase.from('todos').insert({
     id, owner_id: ownerId, note_id: note_id || null, parent_todo_id: parent_todo_id || null,
     text: text || '', content: content || null, position: position || null,
-    due_date: due_date || null, created_at: timestamp, updated_at: timestamp
+    due_date: due_date || null, created_at: timestamp, updated_at: timestamp,
+    skip_content_update: skip_content_update || false
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

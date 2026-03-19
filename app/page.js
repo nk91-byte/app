@@ -2362,7 +2362,7 @@ export default function App() {
                           {showGenerateDropdown && (
                             <>
                               <div className="fixed inset-0 z-[9998]" onClick={() => setShowGenerateDropdown(false)} />
-                              <div className="absolute left-0 top-full mt-1 bg-popover border rounded-lg shadow-lg py-1 min-w-[180px] z-[9999]">
+                              <div className="absolute left-0 bottom-full mb-1 bg-popover border rounded-lg shadow-lg py-1 min-w-[180px] z-[9999]">
                                 <button
                                   onClick={() => retrySummary(null)}
                                   className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted flex items-center gap-1.5"

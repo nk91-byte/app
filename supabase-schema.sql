@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS todos (
   recurrence JSONB,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
-  position INTEGER
+  position INTEGER,
+  skip_content_update BOOLEAN DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS tags (
