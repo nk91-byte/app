@@ -196,36 +196,17 @@
 }
 
 .tiptap ul[data-type="taskList"] li>label input[type="checkbox"] {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   cursor: pointer;
+  accent-color: hsl(var(--primary));
   margin: 0;
   padding: 0;
-  flex-shrink: 0;
-  border: 1px solid hsl(var(--muted-foreground) / 0.3);
-  border-radius: 3px;
-  position: relative;
-  background: transparent;
 }
 
 .tiptap ul[data-type="taskList"] li>label input[type="checkbox"]:checked {
-  background-color: hsl(var(--primary) / 0.45);
-  border-color: hsl(var(--primary) / 0.45);
-}
-
-.tiptap ul[data-type="taskList"] li>label input[type="checkbox"]:checked::after {
-  content: '';
-  position: absolute;
-  left: 2px;
-  top: -1px;
-  width: 5px;
-  height: 8px;
-  border: 1.5px solid white;
-  border-top: none;
-  border-left: none;
-  transform: rotate(45deg);
+  accent-color: hsl(var(--muted-foreground));
+  opacity: 0.5;
 }
 
 /* Text column */
