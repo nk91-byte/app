@@ -274,7 +274,7 @@ export default function RecordingControls({ noteId, onTranscriptReady }) {
 
       <button
         onClick={() => setShowMenu((v) => !v)}
-        className="p-1 rounded-md text-orange-400 hover:text-orange-500 hover:bg-orange-50 transition-colors"
+        className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         title="Record meeting"
       >
         <Mic size={14} />

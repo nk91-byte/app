@@ -2046,8 +2046,8 @@ export default function App() {
                         type="button"
                         onClick={() => setEditorToolbarOpen(!editorToolbarOpen)}
                         className={`p-1 rounded-md transition-colors flex-shrink-0 ${editorToolbarOpen
-                          ? 'bg-orange-100 text-orange-500'
-                          : 'text-orange-400 hover:text-orange-500 hover:bg-orange-50'
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                           }`}
                         title={editorToolbarOpen ? 'Hide formatting' : 'Show formatting'}
                       >
@@ -2057,8 +2057,8 @@ export default function App() {
                         type="button"
                         onClick={() => setShowActionItems(!showActionItems)}
                         className={`p-1 rounded-md transition-colors flex-shrink-0 ${showActionItems
-                          ? 'bg-orange-100 text-orange-500'
-                          : 'text-orange-400 hover:text-orange-500 hover:bg-orange-50'
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                           }`}
                         title={showActionItems ? 'Hide action items' : 'Show action items'}
                       >
@@ -2264,7 +2264,6 @@ export default function App() {
                             </div>
                           );
                         })()}
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-500 mb-2">Notes</p>
                         <NoteEditor
                           key={`note-${editingNote.id}`}
                           id={editingNote.id}
