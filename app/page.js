@@ -2356,7 +2356,7 @@ export default function App() {
                             onClick={e => {
                               if (generateDropdownPos) { setGenerateDropdownPos(null); return; }
                               const rect = e.currentTarget.getBoundingClientRect();
-                              setGenerateDropdownPos({ bottom: window.innerHeight - rect.top + 4, left: rect.left });
+                              setGenerateDropdownPos({ bottom: window.innerHeight - rect.top + 4, right: window.innerWidth - rect.right });
                             }}
                             className="flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium"
                           >
@@ -2544,7 +2544,7 @@ export default function App() {
           <div className="fixed inset-0 z-[9998]" onClick={() => setGenerateDropdownPos(null)} />
           <div
             className="fixed bg-popover border rounded-lg shadow-lg py-1 min-w-[180px] z-[9999]"
-            style={{ bottom: generateDropdownPos.bottom, left: generateDropdownPos.left }}
+            style={{ bottom: generateDropdownPos.bottom, right: generateDropdownPos.right }}
           >
             <button
               onClick={() => retrySummary(null)}
