@@ -556,6 +556,8 @@ export default function App() {
   const [aiActionTagPickerId, setAiActionTagPickerId] = useState(null);
   const [aiActionBubbleExpandedId, setAiActionBubbleExpandedId] = useState(null);
   const [aiActionHoveredId, setAiActionHoveredId] = useState(null);
+  const [aiActionEditingId, setAiActionEditingId] = useState(null);
+  const [aiActionEditText, setAiActionEditText] = useState('');
   const [newTodoTagIds, setNewTodoTagIds] = useState([]);
   const [collapsedGroups, setCollapsedGroups] = useState([]);
   const [collapsedNoteGroups, setCollapsedNoteGroups] = useState([]);
@@ -2166,7 +2168,31 @@ export default function App() {
                                           ? <CheckSquare size={13} className="text-primary/50" />
                                           : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30" />}
                                       </button>
-                                      <span className={`flex-1 ${isDone ? 'line-through text-muted-foreground/50' : 'text-foreground'}`}>{item.text}</span>
+                                      {aiActionEditingId === item.id ? (
+                                        <input
+                                          autoFocus
+                                          className="flex-1 text-[13px] bg-transparent border-b border-primary/40 outline-none py-0.5"
+                                          value={aiActionEditText}
+                                          onChange={e => setAiActionEditText(e.target.value)}
+                                          onBlur={async () => {
+                                            const trimmed = aiActionEditText.trim();
+                                            setAiActionEditingId(null);
+                                            if (!trimmed || trimmed === item.text) return;
+                                            const updatedAiItems = editingNote.ai_action_items.map(i => i.id === item.id ? { ...i, text: trimmed } : i);
+                                            setEditingNote(prev => ({ ...prev, ai_action_items: updatedAiItems }));
+                                            setNotes(prev => prev.map(n => n.id === editingNote.id ? { ...n, ai_action_items: updatedAiItems } : n));
+                                            await api(`notes/${editingNote.id}`, { method: 'PUT', body: JSON.stringify({ ai_action_items: updatedAiItems }) }).catch(console.error);
+                                            if (todoId) await updateTodo(todoId, { text: trimmed });
+                                          }}
+                                          onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') { setAiActionEditingId(null); } }}
+                                        />
+                                      ) : (
+                                        <span
+                                          className={`flex-1 ${isDone ? 'line-through text-muted-foreground/50' : 'text-foreground cursor-text hover:text-primary/80'}`}
+                                          onClick={() => { if (!isDone) { setAiActionEditingId(item.id); setAiActionEditText(item.text); } }}
+                                          title={isDone ? undefined : 'Click to edit'}
+                                        >{item.text}</span>
+                                      )}
                                       {projectTag && (
                                         <span
                                           className="text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0"
@@ -2183,7 +2209,7 @@ export default function App() {
                                         return <span className={`text-[10px] flex-shrink-0 ${color}`}>{due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>;
                                       })()}
                                       {todoId && (
-                                        <div className={`flex items-center gap-px p-px bg-primary/10 border border-primary/20 rounded shadow-sm transition-opacity flex-shrink-0 ${aiActionHoveredId === todoId || aiActionBubbleExpandedId === todoId ? 'opacity-100' : 'opacity-0'}`}>
+                                        <div className={`flex items-center gap-px p-px bg-primary/10 border border-primary/20 rounded shadow-sm transition-opacity flex-shrink-0 ${aiActionHoveredId === todoId || aiActionBubbleExpandedId === todoId ? 'opacity-100' : 'opacity-30'}`}>
                                           {aiActionBubbleExpandedId !== todoId ? (
                                             <button
                                               onClick={() => setAiActionBubbleExpandedId(todoId)}
