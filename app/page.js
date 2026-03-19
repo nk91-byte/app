@@ -2296,12 +2296,12 @@ export default function App() {
                             {editingNote.ai_action_items?.length > 0 && (
                               <div className="pb-3 border-b">
                                 <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-500 mb-1.5">Action Items</p>
-                                <div className="space-y-1.5">
+                                <div className="space-y-0.5">
                                   {editingNote.ai_action_items.map(item => {
                                     const linkedTodo = item.todo_id ? todos.find(t => t.id === item.todo_id) : null;
                                     const isDone = item.is_done ?? linkedTodo?.is_done ?? false;
                                     return (
-                                      <div key={item.id} className="flex items-center gap-2 text-[13px] leading-tight rounded-md px-2 py-1.5 transition-colors hover:bg-muted/30">
+                                      <div key={item.id} className="flex items-center gap-2 text-[13px] leading-tight rounded-md px-2 py-0.5 transition-colors hover:bg-muted/30">
                                         <span className="flex-shrink-0">
                                           {isDone
                                             ? <CheckSquare size={13} className="text-muted-foreground/40" />
@@ -2316,7 +2316,7 @@ export default function App() {
                                         {!item.claimed && (
                                           <button
                                             onClick={() => claimAiActionItem(item.id)}
-                                            className="flex-shrink-0 text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium"
+                                            className="flex-shrink-0 text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors font-medium"
                                             title="Add to your To-Do list"
                                           >
                                             + Add
