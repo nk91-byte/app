@@ -2303,9 +2303,9 @@ export default function App() {
                                       <div key={item.id} className="flex items-center gap-2 text-[13px] leading-tight rounded-md px-2 py-0.5 transition-colors hover:bg-muted/30">
                                         <span className="flex-shrink-0">
                                           {isDone
-                                            ? <CheckSquare size={13} className="text-muted-foreground/40" />
+                                            ? <CheckSquare size={13} className="text-primary/50" />
                                             : item.claimed
-                                              ? <div className="w-[13px] h-[13px] rounded-[3px] border border-foreground/40" />
+                                              ? <div className="w-[13px] h-[13px] rounded-[3px] border border-muted-foreground/30" />
                                               : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30" />}
                                         </span>
                                         <span className={`flex-1 ${isDone ? 'line-through text-muted-foreground/40' : item.claimed ? 'text-foreground' : 'text-muted-foreground/60 italic'}`}>
