@@ -2146,7 +2146,7 @@ export default function App() {
                           const claimedItems = (editingNote.ai_action_items || []).filter(i => i.claimed);
                           if (!claimedItems.length) return null;
                           return (
-                            <div className="mb-4 pb-4 border-b pl-3 border-l-2 border-l-orange-400">
+                            <div className="mb-4 pb-4 border-b">
                               <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-500 mb-2">Actions from Summary</p>
                               <div className="space-y-1">
                                 {claimedItems.map(item => {
@@ -2264,6 +2264,7 @@ export default function App() {
                             </div>
                           );
                         })()}
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-500 mb-2">Notes</p>
                         <NoteEditor
                           key={`note-${editingNote.id}`}
                           id={editingNote.id}
