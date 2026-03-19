@@ -509,7 +509,7 @@ export default function App() {
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [summaryPresets, setSummaryPresets] = useState([]); // [{ id, name, instruction }]
   const [defaultPresetId, setDefaultPresetId] = useState(null);
-  const [showGenerateDropdown, setShowGenerateDropdown] = useState(false);
+  const [generateDropdownPos, setGenerateDropdownPos] = useState(null); // { top, left } for fixed positioning
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState([]);
   const [todoFilters, setTodoFilters] = useState(['open']);
@@ -1054,7 +1054,7 @@ export default function App() {
     const noteId = editingNote.id;
     const transcript = editingNote.transcript;
     setIsGeneratingSummary(true);
-    setShowGenerateDropdown(false);
+    setGenerateDropdownPos(null);
     toast('Generating AI summary…', { duration: 5000 });
     try {
       const result = await fetch('/api/summarize', {
@@ -2351,41 +2351,18 @@ export default function App() {
                       const hasSummary = summarySections.length > 0;
 
                       const generateDropdown = editingNote.transcript?.utterances?.length > 0 && (
-                        <div className="relative inline-flex">
+                        <div className="inline-flex">
                           <button
-                            onClick={() => setShowGenerateDropdown(v => !v)}
+                            onClick={e => {
+                              if (generateDropdownPos) { setGenerateDropdownPos(null); return; }
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setGenerateDropdownPos({ bottom: window.innerHeight - rect.top + 4, left: rect.left });
+                            }}
                             className="flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium"
                           >
                             {hasSummary ? 'Regenerate' : 'Generate AI summary'}
                             <ChevronDown size={11} className="ml-0.5" />
                           </button>
-                          {showGenerateDropdown && (
-                            <>
-                              <div className="fixed inset-0 z-[9998]" onClick={() => setShowGenerateDropdown(false)} />
-                              <div className="absolute left-0 bottom-full mb-1 bg-popover border rounded-lg shadow-lg py-1 min-w-[180px] z-[9999]">
-                                <button
-                                  onClick={() => retrySummary(null)}
-                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted flex items-center gap-1.5"
-                                >
-                                  {!defaultPresetId ? <Star size={10} className="text-primary flex-shrink-0" fill="currentColor" /> : <span className="w-[10px] flex-shrink-0" />}
-                                  <span>Default</span>
-                                </button>
-                                {summaryPresets.map(p => (
-                                  <button
-                                    key={p.id}
-                                    onClick={() => retrySummary(p)}
-                                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted flex items-center gap-1.5"
-                                  >
-                                    {defaultPresetId === p.id ? <Star size={10} className="text-primary flex-shrink-0" fill="currentColor" /> : <span className="w-[10px] flex-shrink-0" />}
-                                    <span className="truncate">{p.name}</span>
-                                  </button>
-                                ))}
-                                {summaryPresets.length === 0 && (
-                                  <p className="px-3 py-1.5 text-[11px] text-muted-foreground italic">No presets — add in Settings.</p>
-                                )}
-                              </div>
-                            </>
-                          )}
                         </div>
                       );
 
@@ -2561,6 +2538,37 @@ export default function App() {
         NoteEditor={NoteEditor}
         createProjectTag={createProjectTag}
       />
+      {/* Generate/Regenerate preset dropdown — rendered at root to escape overflow/stacking contexts */}
+      {generateDropdownPos && (
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setGenerateDropdownPos(null)} />
+          <div
+            className="fixed bg-popover border rounded-lg shadow-lg py-1 min-w-[180px] z-[9999]"
+            style={{ bottom: generateDropdownPos.bottom, left: generateDropdownPos.left }}
+          >
+            <button
+              onClick={() => retrySummary(null)}
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted flex items-center gap-1.5"
+            >
+              {!defaultPresetId ? <Star size={10} className="text-primary flex-shrink-0" fill="currentColor" /> : <span className="w-[10px] flex-shrink-0" />}
+              <span>Default</span>
+            </button>
+            {summaryPresets.map(p => (
+              <button
+                key={p.id}
+                onClick={() => retrySummary(p)}
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted flex items-center gap-1.5"
+              >
+                {defaultPresetId === p.id ? <Star size={10} className="text-primary flex-shrink-0" fill="currentColor" /> : <span className="w-[10px] flex-shrink-0" />}
+                <span className="truncate">{p.name}</span>
+              </button>
+            ))}
+            {summaryPresets.length === 0 && (
+              <p className="px-3 py-1.5 text-[11px] text-muted-foreground italic">No presets — add in Settings.</p>
+            )}
+          </div>
+        </>
+      )}
     </>
   );
 }
