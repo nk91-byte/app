@@ -861,7 +861,7 @@ export default function App() {
       if (effectiveTag) params.set('tag', effectiveTag);
       if (noteStatusFilters.length > 0) params.set('status', noteStatusFilters.join(','));
       params.set('limit', LIMIT);
-      params.set('offset', append ? noteOffset : forceOffset);
+      params.set('offset', forceOffset != null ? forceOffset : noteOffset);
 
       const response = await api(`notes?${params}`);
 
