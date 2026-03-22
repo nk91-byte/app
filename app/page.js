@@ -2140,12 +2140,12 @@ export default function App() {
                         }
                         const fmtDate = (d) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                         return (
-                          <div className="space-y-1 max-h-40 overflow-y-auto">
+                          <div className="border-l-2 border-orange-400/60 space-y-1 max-h-40 overflow-y-auto">
                             {editorItems.map((item, idx) => {
                               const tag = item.projectTagId ? projectTags.find(t => t.id === item.projectTagId) : null;
                               const bubbleKey = `ed-${idx}`;
                               return (
-                                <div key={bubbleKey} className="group flex items-center gap-2 text-[13px] leading-tight border-l-2 border-orange-400/60 pl-2 py-0.5 rounded-r-sm"
+                                <div key={bubbleKey} className="group flex items-center gap-2 text-[13px] leading-tight pl-2 py-0.5"
                                   onMouseLeave={() => { if (collapsibleBubbleKey === bubbleKey) setCollapsibleBubbleKey(null); }}>
                                   <span className="flex-shrink-0 text-muted-foreground/70 pointer-events-none">
                                     {item.isChecked ? <CheckSquare size={13} className="text-primary/70" /> : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/50" />}
@@ -2174,7 +2174,7 @@ export default function App() {
                               const tag = item.projectTagId ? projectTags.find(t => t.id === item.projectTagId) : null;
                               const bubbleKey = `ai-${item.id}`;
                               return (
-                                <div key={bubbleKey} className="group flex items-center gap-2 text-[13px] leading-tight border-l-2 border-orange-400/60 pl-2 py-0.5 rounded-r-sm"
+                                <div key={bubbleKey} className="group flex items-center gap-2 text-[13px] leading-tight pl-2 py-0.5"
                                   onMouseLeave={() => { if (collapsibleBubbleKey === bubbleKey) setCollapsibleBubbleKey(null); }}>
                                   <span className="flex-shrink-0 text-muted-foreground/70 pointer-events-none">
                                     {isDone ? <CheckSquare size={13} className="text-primary/70" /> : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/50" />}
