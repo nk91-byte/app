@@ -566,8 +566,9 @@ export default function NoteEditor({ content, onUpdate, placeholder, toolbarOpen
       <div ref={editorWrapperRef} className="relative overflow-visible">
         <EditorContent editor={editor} />
 
-        {/* Persistent margin badges for task items with due date or tag */}
+        {/* Persistent margin badges for task items with due date or tag (skipped for active task node — bubble handles it) */}
         {taskBadges.map(badge => {
+          if (activeTaskNode && Number(badge.key) === activeTaskNode.pos) return null;
           const tag = projectTags.find(t => t.id === badge.projectTagId) || null;
           if (!badge.dueDate && !tag) return null;
           const fmtDate = (d) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -607,14 +608,34 @@ export default function NoteEditor({ content, onUpdate, placeholder, toolbarOpen
           >
             <div className="flex items-center gap-px p-px bg-primary/10 border border-primary/20 rounded shadow-sm">
               {!bubbleMenuExpanded ? (
-                <button
-                  onClick={() => setBubbleMenuExpanded(true)}
-                  className={`p-0.5 rounded hover:bg-muted transition-colors ${activeTaskNode.node.attrs.dueDate || activeTaskNode.node.attrs.projectTagId ? 'text-primary/70' : 'text-muted-foreground/40 hover:text-muted-foreground'
-                    }`}
-                  title="Task Options"
-                >
-                  <MoreHorizontal size={10} />
-                </button>
+                <div className="flex items-center gap-1">
+                  {/* Show current badges inline before the ... button */}
+                  {activeTaskNode.node.attrs.dueDate && (() => {
+                    const fmtDate = (d) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    return (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded bg-primary/10 text-primary/80 whitespace-nowrap font-normal leading-4 pointer-events-none">
+                        <Calendar size={9} />{fmtDate(activeTaskNode.node.attrs.dueDate)}
+                      </span>
+                    );
+                  })()}
+                  {activeTaskNode.node.attrs.projectTagId && (() => {
+                    const tag = projectTags.find(t => t.id === activeTaskNode.node.attrs.projectTagId);
+                    return tag ? (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded whitespace-nowrap font-normal leading-4 pointer-events-none"
+                        style={{ backgroundColor: tag.color ? `${tag.color}22` : 'hsl(var(--muted))', color: tag.color || 'hsl(var(--muted-foreground))' }}>
+                        <span className="w-1.5 h-1.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: tag.color }} />
+                        {tag.name}
+                      </span>
+                    ) : null;
+                  })()}
+                  <button
+                    onClick={() => setBubbleMenuExpanded(true)}
+                    className={`p-0.5 rounded hover:bg-muted transition-colors ${activeTaskNode.node.attrs.dueDate || activeTaskNode.node.attrs.projectTagId ? 'text-primary/70' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
+                    title="Task Options"
+                  >
+                    <MoreHorizontal size={10} />
+                  </button>
+                </div>
               ) : (
                 <>
                   <button
