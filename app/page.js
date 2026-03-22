@@ -2278,14 +2278,6 @@ export default function App() {
                                           title={isDone ? undefined : 'Click to edit'}
                                         >{item.text}</span>
                                       )}
-                                      {projectTag && (
-                                        <span
-                                          className="text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0"
-                                          style={{ backgroundColor: projectTag.color + '20', color: projectTag.color }}
-                                        >
-                                          {projectTag.name}
-                                        </span>
-                                      )}
                                       {linkedTodo?.due_date && (() => {
                                         const today = new Date(); today.setHours(0,0,0,0);
                                         const due = new Date(linkedTodo.due_date); due.setHours(0,0,0,0);
