@@ -165,6 +165,8 @@ export default function NoteEditor({ content, onUpdate, placeholder, toolbarOpen
   const [formatPainterLocked, setFormatPainterLocked] = useState(false);
   const [isInTable, setIsInTable] = useState(false);
 
+  const [taskBadges, setTaskBadges] = useState([]);
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -342,6 +344,31 @@ export default function NoteEditor({ content, onUpdate, placeholder, toolbarOpen
       editor.off('selectionUpdate', updateTaskNode);
       editor.off('transaction', updateTaskNode);
     };
+  }, [editor]);
+
+  // Compute persistent margin badges for task items that have dueDate or projectTagId
+  useEffect(() => {
+    if (!editor) return;
+    const recompute = () => {
+      const wrapper = editorWrapperRef.current;
+      if (!wrapper) return;
+      const wrapperRect = wrapper.getBoundingClientRect();
+      const badges = [];
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name !== 'taskItem') return;
+        const { dueDate, projectTagId } = node.attrs;
+        if (!dueDate && !projectTagId) return;
+        try {
+          const coords = editor.view.coordsAtPos(pos + 1);
+          const top = coords.top - wrapperRect.top + (coords.bottom - coords.top) / 2 - 8;
+          badges.push({ key: String(pos), dueDate, projectTagId, top });
+        } catch (_) {}
+      });
+      setTaskBadges(badges);
+    };
+    editor.on('transaction', recompute);
+    recompute();
+    return () => editor.off('transaction', recompute);
   }, [editor]);
 
   // Apply format on mouseup after user finishes selecting text
@@ -538,6 +565,39 @@ export default function NoteEditor({ content, onUpdate, placeholder, toolbarOpen
       {/* Editor Content (borderless) */}
       <div ref={editorWrapperRef} className="relative overflow-visible">
         <EditorContent editor={editor} />
+
+        {/* Persistent margin badges for task items with due date or tag */}
+        {taskBadges.map(badge => {
+          const tag = projectTags.find(t => t.id === badge.projectTagId) || null;
+          if (!badge.dueDate && !tag) return null;
+          const fmtDate = (d) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          return (
+            <div
+              key={badge.key}
+              className="absolute right-0 flex items-center gap-1 pointer-events-none"
+              style={{ top: badge.top }}
+            >
+              {badge.dueDate && (
+                <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded bg-primary/10 text-primary/80 whitespace-nowrap font-normal leading-4">
+                  <Calendar size={9} />
+                  {fmtDate(badge.dueDate)}
+                </span>
+              )}
+              {tag && (
+                <span
+                  className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded whitespace-nowrap font-normal leading-4"
+                  style={{
+                    backgroundColor: tag.color ? `${tag.color}22` : 'hsl(var(--muted))',
+                    color: tag.color || 'hsl(var(--muted-foreground))',
+                  }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: tag.color }} />
+                  {tag.name}
+                </span>
+              )}
+            </div>
+          );
+        })}
 
         {/* Inline Task Properties Menu - custom positioned */}
         {activeTaskNode && menuPosition && (

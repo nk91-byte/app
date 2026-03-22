@@ -29,7 +29,7 @@ CRITICAL: Respond with ONLY a raw JSON object. No markdown code fences, no backt
       messages: [
         {
           role: 'user',
-          content: `Analyze this meeting transcript and return a JSON object with exactly this structure:
+          content: `${instruction ? `INSTRUCTIONS FOR THIS ANALYSIS (take priority over default rules below):\n${instruction}\n\n` : ''}Analyze this meeting transcript and return a JSON object with exactly this structure:
 {
   "sections": [
     { "title": "Section Title", "points": ["bullet point 1", "bullet point 2"] }
@@ -39,13 +39,13 @@ CRITICAL: Respond with ONLY a raw JSON object. No markdown code fences, no backt
   ]
 }
 
-Rules:
+Default rules (override with instructions above if provided):
 - sections: 2-4 thematic sections covering the key topics, decisions, and context. Each section has a short descriptive title and 2-5 concise bullet points. Group related content together logically.
 - action_items: only concrete commitments or tasks mentioned, with the speaker who committed to it
 - If no clear action items exist, return an empty array
 - Use the speaker labels from the transcript (e.g. "Speaker A", "Speaker B")
 - Output raw JSON only — no markdown fences, no backticks, no preamble
-${instruction ? `\nAdditional instructions:\n${instruction}` : ''}
+
 Transcript:
 ${transcriptText}`,
         },

@@ -109,13 +109,15 @@ function extractActionItems(content) {
   function walk(node) {
     if (node.type === 'taskItem') {
       const isChecked = node.attrs?.checked || false;
+      const dueDate = node.attrs?.dueDate || null;
+      const projectTagId = node.attrs?.projectTagId || null;
       let text = '';
       function walkText(n) {
         if (n.type === 'text') text += n.text;
         if (n.content) n.content.forEach(walkText);
       }
       if (node.content) node.content.forEach(walkText);
-      tasks.push({ isChecked, text });
+      tasks.push({ isChecked, text, dueDate, projectTagId });
     }
     if (node.content) node.content.forEach(walk);
   }
@@ -560,6 +562,8 @@ export default function App() {
   const [aiActionTagPickerId, setAiActionTagPickerId] = useState(null);
   const [aiActionBubbleExpandedId, setAiActionBubbleExpandedId] = useState(null);
   const [aiActionHoveredId, setAiActionHoveredId] = useState(null);
+  const [summaryItemBubbleId, setSummaryItemBubbleId] = useState(null);
+  const [collapsibleBubbleKey, setCollapsibleBubbleKey] = useState(null);
   const [aiActionEditingId, setAiActionEditingId] = useState(null);
   const [aiActionEditText, setAiActionEditText] = useState('');
   const [newTodoTagIds, setNewTodoTagIds] = useState([]);
@@ -1100,7 +1104,8 @@ export default function App() {
     // skipContentUpdate: AI-claimed todos are tracked in ai_action_items, not in editor content.
     // Without this flag the server inserts a checkbox into the note, but editingNote.content
     // doesn't know about it, so the next saveNote would archive the todo immediately.
-    const todo = await createTodo(item.text, noteId, editingNote.tags?.map(t => t.id) || [], { skipNoteReload: true, skipContentUpdate: true });
+    const tagIds = [...(editingNote.tags?.map(t => t.id) || []), ...(item.projectTagId ? [item.projectTagId] : [])];
+    const todo = await createTodo(item.text, noteId, tagIds, { skipNoteReload: true, skipContentUpdate: true, due_date: item.dueDate ? new Date(item.dueDate + 'T12:00:00').toISOString() : null });
     // Even if todo response is missing (network hiccup), the todo was likely created in DB.
     // Mark claimed regardless and store the id if we have it.
     toast.success('Added to your To-Do list');
@@ -1110,6 +1115,16 @@ export default function App() {
     try {
       await api(`notes/${noteId}`, { method: 'PUT', body: JSON.stringify({ ai_action_items: updated }) });
     } catch (e) { console.error('Failed to update ai_action_items:', e); }
+  }, [editingNote]);
+
+  const updateAiActionItemMeta = useCallback(async (itemId, updates) => {
+    if (!editingNote) return;
+    const noteId = editingNote.id;
+    const items = editingNote.ai_action_items || [];
+    const updated = items.map(i => i.id === itemId ? { ...i, ...updates } : i);
+    setEditingNote(prev => ({ ...prev, ai_action_items: updated }));
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, ai_action_items: updated } : n));
+    await api(`notes/${noteId}`, { method: 'PUT', body: JSON.stringify({ ai_action_items: updated }) }).catch(console.error);
   }, [editingNote]);
 
   const unclaimAiActionItem = useCallback(async (itemId) => {
@@ -2105,12 +2120,12 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Collapsible Action Items Summary */}
+                  {/* Collapsible All Action Items */}
                   {showActionItems && (
                     <div className="border-b bg-muted/20 px-4 py-3 flex-shrink-0">
                       <div className="flex items-center gap-2 mb-2 text-xs font-semibold uppercase tracking-wider text-orange-500">
                         <ListTodo size={12} />
-                        Action Items
+                        All Action Items
                       </div>
                       {(() => {
                         const editorItems = extractActionItems(editingNote.content);
@@ -2118,31 +2133,62 @@ export default function App() {
                         if (editorItems.length === 0 && aiClaimed.length === 0) {
                           return <p className="text-xs text-muted-foreground italic">No action items found in this note.</p>;
                         }
+                        const fmtDate = (d) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                         return (
-                          <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                            {editorItems.map((item, idx) => (
-                              <div key={`ed-${idx}`} className="flex items-start gap-2 text-[13px] leading-tight">
-                                <span className="mt-0.5 text-muted-foreground/70 pointer-events-none">
-                                  {item.isChecked ? <CheckSquare size={13} className="text-primary/70" /> : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/50" />}
-                                </span>
-                                <span className={`flex-1 ${item.isChecked ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-                                  {item.text || 'Empty task'}
-                                </span>
-                              </div>
-                            ))}
+                          <div className="space-y-1 max-h-40 overflow-y-auto">
+                            {editorItems.map((item, idx) => {
+                              const tag = item.projectTagId ? projectTags.find(t => t.id === item.projectTagId) : null;
+                              const bubbleKey = `ed-${idx}`;
+                              return (
+                                <div key={bubbleKey} className="group flex items-center gap-2 text-[13px] leading-tight border-l-2 border-orange-400/60 pl-2 py-0.5 rounded-r-sm"
+                                  onMouseLeave={() => { if (collapsibleBubbleKey === bubbleKey) setCollapsibleBubbleKey(null); }}>
+                                  <span className="flex-shrink-0 text-muted-foreground/70 pointer-events-none">
+                                    {item.isChecked ? <CheckSquare size={13} className="text-primary/70" /> : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/50" />}
+                                  </span>
+                                  <span className={`flex-1 min-w-0 truncate ${item.isChecked ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                                    {item.text || 'Empty task'}
+                                  </span>
+                                  {item.dueDate && (
+                                    <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded bg-primary/10 text-primary/80 whitespace-nowrap font-normal leading-4 flex-shrink-0">
+                                      <CalendarIcon size={9} />{fmtDate(item.dueDate)}
+                                    </span>
+                                  )}
+                                  {tag && (
+                                    <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded whitespace-nowrap font-normal leading-4 flex-shrink-0"
+                                      style={{ backgroundColor: tag.color ? `${tag.color}22` : 'hsl(var(--muted))', color: tag.color || 'hsl(var(--muted-foreground))' }}>
+                                      <span className="w-1.5 h-1.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: tag.color }} />
+                                      {tag.name}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
                             {aiClaimed.map(item => {
                               const linkedTodo = item.todo_id ? todos.find(t => t.id === item.todo_id) : todos.find(t => t.note_id === editingNote.id && t.text === item.text);
                               const isDone = item.is_done ?? linkedTodo?.is_done ?? false;
+                              const tag = item.projectTagId ? projectTags.find(t => t.id === item.projectTagId) : null;
+                              const bubbleKey = `ai-${item.id}`;
                               return (
-                                <div key={`ai-${item.id}`} className="flex items-start gap-2 text-[13px] leading-tight">
-                                  <span className="mt-0.5 text-muted-foreground/70 pointer-events-none flex-shrink-0">
-                                    {isDone
-                                      ? <CheckSquare size={13} className="text-primary/70" />
-                                      : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/50" />}
+                                <div key={bubbleKey} className="group flex items-center gap-2 text-[13px] leading-tight border-l-2 border-orange-400/60 pl-2 py-0.5 rounded-r-sm"
+                                  onMouseLeave={() => { if (collapsibleBubbleKey === bubbleKey) setCollapsibleBubbleKey(null); }}>
+                                  <span className="flex-shrink-0 text-muted-foreground/70 pointer-events-none">
+                                    {isDone ? <CheckSquare size={13} className="text-primary/70" /> : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/50" />}
                                   </span>
-                                  <span className={`flex-1 ${isDone ? 'line-through text-muted-foreground/50' : 'text-foreground'}`}>
+                                  <span className={`flex-1 min-w-0 truncate ${isDone ? 'line-through text-muted-foreground/50' : 'text-foreground'}`}>
                                     {item.text}
                                   </span>
+                                  {item.dueDate && (
+                                    <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded bg-primary/10 text-primary/80 whitespace-nowrap font-normal leading-4 flex-shrink-0">
+                                      <CalendarIcon size={9} />{fmtDate(item.dueDate)}
+                                    </span>
+                                  )}
+                                  {tag && (
+                                    <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded whitespace-nowrap font-normal leading-4 flex-shrink-0"
+                                      style={{ backgroundColor: tag.color ? `${tag.color}22` : 'hsl(var(--muted))', color: tag.color || 'hsl(var(--muted-foreground))' }}>
+                                      <span className="w-1.5 h-1.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: tag.color }} />
+                                      {tag.name}
+                                    </span>
+                                  )}
                                 </div>
                               );
                             })}
@@ -2348,7 +2394,7 @@ export default function App() {
                       const rawSummary = editingNote.summary;
                       const summarySections = Array.isArray(rawSummary) ? rawSummary : (rawSummary?.sections || []);
                       const summaryPresetName = !Array.isArray(rawSummary) ? (rawSummary?.preset_name || null) : null;
-                      const hasSummary = summarySections.length > 0;
+                      const hasSummary = rawSummary != null;
 
                       const generateDropdown = editingNote.transcript?.utterances?.length > 0 && (
                         <div className="inline-flex">
@@ -2383,8 +2429,12 @@ export default function App() {
                                     {editingNote.ai_action_items.map(item => {
                                       const linkedTodo = item.todo_id ? todos.find(t => t.id === item.todo_id) : null;
                                       const isDone = item.is_done ?? linkedTodo?.is_done ?? false;
+                                      const itemTag = item.projectTagId ? projectTags.find(t => t.id === item.projectTagId) : null;
+                                      const fmtDate = (d) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                                      const bubbleOpen = summaryItemBubbleId === item.id;
                                       return (
-                                        <div key={item.id} className="flex items-center gap-2 text-[13px] leading-tight rounded-md px-2 py-0.5 transition-colors hover:bg-muted/30">
+                                        <div key={item.id} className="group flex items-center gap-1.5 text-[13px] leading-tight rounded-md px-2 py-0.5 transition-colors hover:bg-muted/30"
+                                          onMouseLeave={() => { if (bubbleOpen) setSummaryItemBubbleId(null); }}>
                                           <span className="flex-shrink-0">
                                             {isDone
                                               ? <CheckSquare size={13} className="text-primary/50" />
@@ -2392,11 +2442,114 @@ export default function App() {
                                                 ? <div className="w-[13px] h-[13px] rounded-[3px] border border-muted-foreground/30" />
                                                 : <div className="w-[13px] h-[13px] border rounded-[3px] border-muted-foreground/30" />}
                                           </span>
-                                          <span className={`flex-1 ${isDone ? 'line-through text-muted-foreground/40' : item.claimed ? 'text-foreground' : 'text-muted-foreground/60 italic'}`}>
+                                          <span className={`flex-1 min-w-0 ${isDone ? 'line-through text-muted-foreground/40' : item.claimed ? 'text-foreground' : 'text-muted-foreground/60 italic'}`}>
                                             {item.text}
                                             {item.speaker && <span className="ml-1.5 text-[11px] text-muted-foreground/40 font-normal not-italic">— {item.speaker}</span>}
                                           </span>
-                                          {!item.claimed && (
+                                          {/* Inline badges */}
+                                          {item.dueDate && !bubbleOpen && (
+                                            <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded bg-primary/10 text-primary/80 whitespace-nowrap font-normal leading-4 flex-shrink-0">
+                                              <CalendarIcon size={9} />{fmtDate(item.dueDate)}
+                                            </span>
+                                          )}
+                                          {itemTag && !bubbleOpen && (
+                                            <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded whitespace-nowrap font-normal leading-4 flex-shrink-0"
+                                              style={{ backgroundColor: itemTag.color ? `${itemTag.color}22` : 'hsl(var(--muted))', color: itemTag.color || 'hsl(var(--muted-foreground))' }}>
+                                              <span className="w-1.5 h-1.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: itemTag.color }} />
+                                              {itemTag.name}
+                                            </span>
+                                          )}
+                                          {/* Floating bubble menu */}
+                                          <div className={`flex items-center gap-px flex-shrink-0 transition-opacity ${bubbleOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                                            {!bubbleOpen ? (
+                                              <button
+                                                onClick={() => setSummaryItemBubbleId(item.id)}
+                                                className="p-0.5 rounded hover:bg-muted text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                                                title="Set due date or tag"
+                                              >
+                                                <MoreHorizontal size={12} />
+                                              </button>
+                                            ) : (
+                                              <div className="flex items-center gap-px bg-background border rounded shadow-sm p-px">
+                                                <button
+                                                  onClick={() => setSummaryItemBubbleId(null)}
+                                                  className="p-0.5 rounded hover:bg-muted text-muted-foreground/60 transition-colors"
+                                                  title="Close"
+                                                >
+                                                  <X size={10} />
+                                                </button>
+                                                <div className="w-px h-3 bg-border mx-0.5" />
+                                                {/* Date picker */}
+                                                <div className="relative flex items-center">
+                                                  <button
+                                                    onClick={() => document.getElementById(`sum-date-${item.id}`)?.showPicker()}
+                                                    className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-dashed transition-colors ${item.dueDate ? 'border-primary/30 text-foreground bg-primary/5' : 'border-transparent text-muted-foreground hover:bg-muted'}`}
+                                                  >
+                                                    <CalendarIcon size={11} />
+                                                    {item.dueDate ? fmtDate(item.dueDate) : 'Date'}
+                                                  </button>
+                                                  <input
+                                                    id={`sum-date-${item.id}`}
+                                                    type="date"
+                                                    value={item.dueDate || ''}
+                                                    onChange={e => updateAiActionItemMeta(item.id, { dueDate: e.target.value || null })}
+                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                  />
+                                                </div>
+                                                {item.dueDate && (
+                                                  <button
+                                                    onClick={() => updateAiActionItemMeta(item.id, { dueDate: null })}
+                                                    className="p-0.5 rounded hover:bg-muted text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                                                    title="Clear date"
+                                                  >
+                                                    <X size={9} />
+                                                  </button>
+                                                )}
+                                                <div className="w-px h-3 bg-border mx-0.5" />
+                                                {/* Tag picker */}
+                                                <Popover>
+                                                  <PopoverTrigger asChild>
+                                                    <button
+                                                      className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-dashed transition-colors ${itemTag ? 'border-primary/30 text-foreground bg-primary/5' : 'border-transparent text-muted-foreground hover:bg-muted'}`}
+                                                    >
+                                                      <Tag size={11} />
+                                                      {itemTag ? itemTag.name : 'Project'}
+                                                    </button>
+                                                  </PopoverTrigger>
+                                                  <PopoverContent className="w-44 p-1" align="end" sideOffset={5}>
+                                                    <div className="max-h-40 overflow-y-auto">
+                                                      {item.projectTagId && (
+                                                        <button
+                                                          onClick={() => updateAiActionItemMeta(item.id, { projectTagId: null })}
+                                                          className="w-full text-left px-2 py-1.5 text-xs flex items-center gap-2 rounded hover:bg-muted transition-colors text-muted-foreground"
+                                                        >
+                                                          <X size={10} /> Clear tag
+                                                        </button>
+                                                      )}
+                                                      {projectTags.length === 0 && (
+                                                        <p className="text-xs text-muted-foreground px-2 py-2 italic">No projects exist</p>
+                                                      )}
+                                                      {projectTags.map(tag => (
+                                                        <button
+                                                          key={tag.id}
+                                                          onClick={() => updateAiActionItemMeta(item.id, { projectTagId: tag.id })}
+                                                          className="w-full text-left px-2 py-1.5 text-xs flex items-center gap-2 rounded hover:bg-muted transition-colors"
+                                                        >
+                                                          <div className={`w-3 h-3 rounded flex items-center justify-center border ${item.projectTagId === tag.id ? 'bg-primary border-primary text-primary-foreground' : 'border-input'}`}>
+                                                            {item.projectTagId === tag.id && <Check size={8} />}
+                                                          </div>
+                                                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
+                                                          <span className="flex-1 truncate">{tag.name}</span>
+                                                        </button>
+                                                      ))}
+                                                    </div>
+                                                  </PopoverContent>
+                                                </Popover>
+                                              </div>
+                                            )}
+                                          </div>
+                                          {/* Claim / unclaim buttons */}
+                                          {!item.claimed && !bubbleOpen && (
                                             <button
                                               onClick={() => claimAiActionItem(item.id)}
                                               className="flex-shrink-0 text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors font-medium"
@@ -2405,7 +2558,7 @@ export default function App() {
                                               + Add
                                             </button>
                                           )}
-                                          {item.claimed && !isDone && (
+                                          {item.claimed && !isDone && !bubbleOpen && (
                                             <button
                                               onClick={() => unclaimAiActionItem(item.id)}
                                               className="flex-shrink-0 text-[11px] px-1.5 py-0.5 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
