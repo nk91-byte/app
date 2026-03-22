@@ -2120,6 +2120,11 @@ export default function App() {
                     </div>
                   </div>
 
+                  {/* Backdrop — closes any open bubble when clicking outside */}
+                  {(summaryItemBubbleId || aiActionBubbleExpandedId) && (
+                    <div className="fixed inset-0 z-[45]" onClick={() => { setSummaryItemBubbleId(null); setAiActionBubbleExpandedId(null); }} />
+                  )}
+
                   {/* Collapsible All Action Items */}
                   {showActionItems && (
                     <div className="border-b bg-muted/20 px-4 py-3 flex-shrink-0">
@@ -2289,7 +2294,7 @@ export default function App() {
                                         return <span className={`text-[10px] flex-shrink-0 ${color}`}>{due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>;
                                       })()}
                                       {todoId && (
-                                        <div className={`flex items-center gap-px p-px bg-primary/10 border border-primary/20 rounded shadow-sm transition-opacity flex-shrink-0 ${aiActionHoveredId === todoId || aiActionBubbleExpandedId === todoId ? 'opacity-100' : 'opacity-30'}`}>
+                                        <div className={`relative z-[46] flex items-center gap-px p-px bg-primary/10 border border-primary/20 rounded shadow-sm transition-opacity flex-shrink-0 ${aiActionHoveredId === todoId || aiActionBubbleExpandedId === todoId ? 'opacity-100' : 'opacity-30'}`}>
                                           {aiActionBubbleExpandedId !== todoId ? (
                                             <button
                                               onClick={() => setAiActionBubbleExpandedId(todoId)}
@@ -2470,7 +2475,7 @@ export default function App() {
                                                 <MoreHorizontal size={12} />
                                               </button>
                                             ) : (
-                                              <div className="flex items-center gap-px bg-background border rounded shadow-sm p-px">
+                                              <div className="relative z-[46] flex items-center gap-px bg-background border rounded shadow-sm p-px">
                                                 <button
                                                   onClick={() => setSummaryItemBubbleId(null)}
                                                   className="p-0.5 rounded hover:bg-muted text-muted-foreground/60 transition-colors"

@@ -600,6 +600,11 @@ export default function NoteEditor({ content, onUpdate, placeholder, toolbarOpen
           );
         })}
 
+        {/* Backdrop — closes expanded bubble when clicking outside */}
+        {bubbleMenuExpanded && activeTaskNode && (
+          <div className="fixed inset-0 z-[49]" onClick={() => setBubbleMenuExpanded(false)} />
+        )}
+
         {/* Inline Task Properties Menu - custom positioned */}
         {activeTaskNode && menuPosition && (
           <div
