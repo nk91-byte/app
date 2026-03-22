@@ -569,8 +569,7 @@ export default function NoteEditor({ content, onUpdate, placeholder, toolbarOpen
         {/* Persistent margin badges for task items with due date or tag (skipped for active task node — bubble handles it) */}
         {taskBadges.map(badge => {
           if (activeTaskNode && Number(badge.key) === activeTaskNode.pos) return null;
-          const tag = projectTags.find(t => t.id === badge.projectTagId) || null;
-          if (!badge.dueDate && !tag) return null;
+          if (!badge.dueDate) return null;
           const fmtDate = (d) => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
           return (
             <div
@@ -578,24 +577,10 @@ export default function NoteEditor({ content, onUpdate, placeholder, toolbarOpen
               className="absolute right-0 flex items-center gap-1 pointer-events-none"
               style={{ top: badge.top }}
             >
-              {badge.dueDate && (
-                <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded bg-primary/10 text-primary/80 whitespace-nowrap font-normal leading-4">
-                  <Calendar size={9} />
-                  {fmtDate(badge.dueDate)}
-                </span>
-              )}
-              {tag && (
-                <span
-                  className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded whitespace-nowrap font-normal leading-4"
-                  style={{
-                    backgroundColor: tag.color ? `${tag.color}22` : 'hsl(var(--muted))',
-                    color: tag.color || 'hsl(var(--muted-foreground))',
-                  }}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: tag.color }} />
-                  {tag.name}
-                </span>
-              )}
+              <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded bg-primary/10 text-primary/80 whitespace-nowrap font-normal leading-4">
+                <Calendar size={9} />
+                {fmtDate(badge.dueDate)}
+              </span>
             </div>
           );
         })}

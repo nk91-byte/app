@@ -2451,17 +2451,10 @@ export default function App() {
                                             {item.text}
                                             {item.speaker && <span className="ml-1.5 text-[11px] text-muted-foreground/40 font-normal not-italic">— {item.speaker}</span>}
                                           </span>
-                                          {/* Inline badges */}
+                                          {/* Due date always visible; tag only shown inside bubble */}
                                           {item.dueDate && !bubbleOpen && (
                                             <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded bg-primary/10 text-primary/80 whitespace-nowrap font-normal leading-4 flex-shrink-0">
                                               <CalendarIcon size={9} />{fmtDate(item.dueDate)}
-                                            </span>
-                                          )}
-                                          {itemTag && !bubbleOpen && (
-                                            <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-px rounded whitespace-nowrap font-normal leading-4 flex-shrink-0"
-                                              style={{ backgroundColor: itemTag.color ? `${itemTag.color}22` : 'hsl(var(--muted))', color: itemTag.color || 'hsl(var(--muted-foreground))' }}>
-                                              <span className="w-1.5 h-1.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: itemTag.color }} />
-                                              {itemTag.name}
                                             </span>
                                           )}
                                           {/* Floating bubble menu */}
