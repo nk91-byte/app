@@ -167,11 +167,45 @@ async function getNotes(supabase, searchParams, ownerId) {
   const statusFilter = searchParams.get('status');
   const hasTranscript = searchParams.get('has_transcript') === 'true';
 
+  // Pre-resolve tag filter to note IDs so count and pagination are accurate
+  let tagFilteredNoteIds = null;
+  let includeUntagged = false;
+  if (tagId) {
+    const filterTags = tagId.split(',');
+    const hasUntagged = filterTags.includes('untagged');
+    const realTags = filterTags.filter(t => t !== 'untagged');
+    includeUntagged = hasUntagged;
+
+    if (realTags.length > 0) {
+      const { data: ntRows } = await supabase
+        .from('note_tags')
+        .select('note_id, tags(type)')
+        .in('tag_id', realTags);
+      const matchingIds = [...new Set(
+        (ntRows || []).filter(nt => nt.tags?.type === 'source').map(nt => nt.note_id)
+      )];
+      if (!hasUntagged) {
+        // Only specific tags — filter to exact matches
+        tagFilteredNoteIds = matchingIds;
+      } else {
+        // Tags + untagged combined — we'll handle untagged client-side below
+        tagFilteredNoteIds = matchingIds;
+      }
+    }
+  }
+
   // Build base query
   let query = supabase.from('notes').select('*, note_tags(tag_id, tags(*))', { count: 'exact' })
     .eq('owner_id', ownerId)
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1);
+    .order('created_at', { ascending: false });
+
+  if (tagFilteredNoteIds !== null && !includeUntagged) {
+    // Exact tag filter: apply server-side so count and range are correct
+    if (tagFilteredNoteIds.length === 0) {
+      return NextResponse.json({ data: [], total: 0 });
+    }
+    query = query.in('id', tagFilteredNoteIds);
+  }
 
   if (hasTranscript) {
     query = query.not('transcript', 'is', null);
@@ -181,33 +215,27 @@ async function getNotes(supabase, searchParams, ownerId) {
     query = query.or(`title.ilike.%${search}%,content::text.ilike.%${search}%`);
   }
 
+  query = query.range(offset, offset + limit - 1);
+
   const { data: notes, count, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Post-process: flatten tags, apply tag filters client-side
+  // Post-process: flatten tags
   let result = notes.map(n => {
     const tags = (n.note_tags || []).map(nt => nt.tags).filter(Boolean);
     const { note_tags, ...rest } = n;
     return { ...rest, tags };
   });
 
-  // Tag filtering (post-query due to complexity)
-  if (tagId) {
+  // Client-side tag filtering only for the untagged case (can't be done server-side)
+  if (tagId && includeUntagged) {
     const filterTags = tagId.split(',');
-    const hasUntagged = filterTags.includes('untagged');
     const realTags = filterTags.filter(t => t !== 'untagged');
-
     result = result.filter(note => {
       const sourceTags = note.tags.filter(t => t.type === 'source');
       const noteTagIds = sourceTags.map(t => t.id);
-
-      if (hasUntagged && realTags.length === 0) {
-        return sourceTags.length === 0;
-      } else if (hasUntagged && realTags.length > 0) {
-        return sourceTags.length === 0 || realTags.some(rt => noteTagIds.includes(rt));
-      } else {
-        return realTags.some(rt => noteTagIds.includes(rt));
-      }
+      if (realTags.length === 0) return sourceTags.length === 0;
+      return sourceTags.length === 0 || realTags.some(rt => noteTagIds.includes(rt));
     });
   }
 
