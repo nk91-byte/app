@@ -931,9 +931,8 @@ export default function App() {
       if (todoCreatedRangeFrom) params.set('created_from', todoCreatedRangeFrom);
       if (todoCreatedRangeTo) params.set('created_to', todoCreatedRangeTo);
 
-      params.set('limit', LIMIT);
-      // Fix: always use forceOffset when provided, not stale closure todoOffset
-      params.set('offset', forceOffset != null ? forceOffset : todoOffset);
+      params.set('limit', 10000);
+      params.set('offset', 0);
 
       const response = await api(`todos?${params}`);
 

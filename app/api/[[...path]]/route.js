@@ -212,6 +212,50 @@ async function getNotes(supabase, searchParams, ownerId) {
     }
   }
 
+  // Status filter: pre-resolve note IDs before pagination so count is accurate
+  if (statusFilter) {
+    const statuses = new Set(statusFilter.split(','));
+    const wantsAll = statuses.has('open') && statuses.has('closed') && statuses.has('no_action');
+
+    if (!wantsAll) {
+      const { data: allTodos } = await supabase.from('todos')
+        .select('note_id, is_done, archived_at')
+        .eq('owner_id', ownerId)
+        .not('note_id', 'is', null);
+
+      const noteOpen = new Set();
+      const noteHasTodos = new Set();
+      for (const t of (allTodos || [])) {
+        noteHasTodos.add(t.note_id);
+        if (!t.is_done && !t.archived_at) noteOpen.add(t.note_id);
+      }
+      const noteDone = new Set([...noteHasTodos].filter(id => !noteOpen.has(id)));
+
+      const wO = statuses.has('open'), wC = statuses.has('closed'), wN = statuses.has('no_action');
+
+      if (wO && wC) {
+        // open + closed = all notes with any todos
+        if (noteHasTodos.size === 0) return NextResponse.json({ data: [], total: 0 });
+        query = query.in('id', [...noteHasTodos]);
+      } else if (wO && wN) {
+        // open + no_action = everything except notes with only done todos
+        if (noteDone.size > 0) query = query.not('id', 'in', `(${[...noteDone].join(',')})`);
+      } else if (wC && wN) {
+        // closed + no_action = everything except notes with open todos
+        if (noteOpen.size > 0) query = query.not('id', 'in', `(${[...noteOpen].join(',')})`);
+      } else if (wO) {
+        if (noteOpen.size === 0) return NextResponse.json({ data: [], total: 0 });
+        query = query.in('id', [...noteOpen]);
+      } else if (wC) {
+        if (noteDone.size === 0) return NextResponse.json({ data: [], total: 0 });
+        query = query.in('id', [...noteDone]);
+      } else if (wN) {
+        // no_action = notes with no todos
+        if (noteHasTodos.size > 0) query = query.not('id', 'in', `(${[...noteHasTodos].join(',')})`);
+      }
+    }
+  }
+
   if (hasTranscript) {
     query = query.not('transcript', 'is', null);
   }
@@ -226,44 +270,11 @@ async function getNotes(supabase, searchParams, ownerId) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // Post-process: flatten tags
-  let result = notes.map(n => {
+  const result = notes.map(n => {
     const tags = (n.note_tags || []).map(nt => nt.tags).filter(Boolean);
     const { note_tags, ...rest } = n;
     return { ...rest, tags };
   });
-
-  // Status filtering requires checking todos for each note
-  if (statusFilter) {
-    const statuses = statusFilter.split(',');
-    const noteIds = result.map(n => n.id);
-
-    if (noteIds.length > 0) {
-      const { data: allTodos } = await supabase.from('todos')
-        .select('id, note_id, is_done, archived_at')
-        .in('note_id', noteIds)
-        .is('archived_at', null);
-
-      const todosByNote = {};
-      for (const t of (allTodos || [])) {
-        if (!todosByNote[t.note_id]) todosByNote[t.note_id] = [];
-        todosByNote[t.note_id].push(t);
-      }
-
-      result = result.filter(note => {
-        const todos = todosByNote[note.id] || [];
-        const hasOpen = todos.some(t => !t.is_done);
-        const hasTodos = todos.length > 0;
-        const allDone = hasTodos && !hasOpen;
-
-        return statuses.some(s => {
-          if (s === 'open') return hasOpen;
-          if (s === 'closed') return allDone;
-          if (s === 'no_action') return !hasTodos;
-          return false;
-        });
-      });
-    }
-  }
 
   return NextResponse.json({ data: result, total: count || result.length });
 }

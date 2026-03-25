@@ -431,17 +431,6 @@ export default function TodosBrowser({
                 );
             })()}
 
-            {/* Load More Button outside the DnD Context to avoid drag glitches */}
-            {todoTree.length > 0 && groups.reduce((acc, g) => acc + g.todos.length, 0) < todoTotal && (
-                <div className="pt-6 pb-12 flex justify-center">
-                    <button
-                        onClick={loadMoreTodos}
-                        className="px-4 py-2 text-sm border font-medium rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
-                    >
-                        Load More To-Dos ({todoTotal - groups.reduce((acc, g) => acc + g.todos.length, 0)} remaining)
-                    </button>
-                </div>
-            )}
         </div>
     );
 }
