@@ -1146,14 +1146,10 @@ export default function App() {
     const items = editingNote.ai_action_items || [];
     const item = items.find(i => i.id === itemId);
     if (!item || item.claimed) return;
-    // Create real todo linked to this note.
-    // skipContentUpdate: AI-claimed todos are tracked in ai_action_items, not in editor content.
-    // Without this flag the server inserts a checkbox into the note, but editingNote.content
-    // doesn't know about it, so the next saveNote would archive the todo immediately.
-    const tagIds = [...(editingNote.tags?.map(t => t.id) || []), ...(item.projectTagId ? [item.projectTagId] : [])];
+    // Only apply a project tag if one was explicitly selected on the action item.
+    // Do NOT inherit the note's source (meeting) tags — those are a different tag type.
+    const tagIds = item.projectTagId ? [item.projectTagId] : [];
     const todo = await createTodo(item.text, noteId, tagIds, { skipNoteReload: true, skipContentUpdate: true, due_date: item.dueDate ? new Date(item.dueDate + 'T12:00:00').toISOString() : null });
-    // Even if todo response is missing (network hiccup), the todo was likely created in DB.
-    // Mark claimed regardless and store the id if we have it.
     toast.success('Added to your To-Do list');
     const updated = items.map(i => i.id === itemId ? { ...i, claimed: true, todo_id: todo?.id || null } : i);
     setEditingNote(prev => ({ ...prev, ai_action_items: updated }));
@@ -1179,19 +1175,19 @@ export default function App() {
     const items = editingNote.ai_action_items || [];
     const item = items.find(i => i.id === itemId);
     if (!item || !item.claimed) return;
-    // Delete the linked todo — use todo_id if available, else fall back to matching by text+note
-    let todoIdToDelete = item.todo_id;
-    if (!todoIdToDelete) {
-      const match = todos.find(t => t.note_id === noteId && t.text === item.text);
-      todoIdToDelete = match?.id || null;
+    // Delete ALL todos linked to this action item by text+note to clear any duplicates
+    // that may have accumulated from previous add/remove cycles.
+    const matchingTodos = todos.filter(t => t.note_id === noteId && t.text === item.text && t.skip_content_update);
+    const deleteIds = matchingTodos.length > 0
+      ? matchingTodos.map(t => t.id)
+      : (item.todo_id ? [item.todo_id] : []);
+    await Promise.all(deleteIds.map(id =>
+      api(`todos/${id}`, { method: 'DELETE' }).catch(e => console.error('Failed to delete todo:', e))
+    ));
+    if (deleteIds.length > 0) {
+      setTodos(prev => prev.filter(t => !deleteIds.includes(t.id)));
     }
-    if (todoIdToDelete) {
-      try {
-        await api(`todos/${todoIdToDelete}`, { method: 'DELETE' });
-        setTodos(prev => prev.filter(t => t.id !== todoIdToDelete));
-      } catch (e) { console.error('Failed to delete todo:', e); }
-    }
-    // Refresh todos panel count
+    // Refresh todos panel
     loadTodos();
     // Reset to unclaimed
     const updated = items.map(i => i.id === itemId ? { ...i, claimed: false, todo_id: null } : i);
@@ -1228,7 +1224,7 @@ export default function App() {
         body: JSON.stringify({ text, note_id: noteId || null, tag_ids: tagIds || [], position, due_date: options.due_date || null, content: options.content || null, skip_content_update: options.skipContentUpdate || false }),
       });
       setTodos(prev => [...prev, todo]);
-      setNewTodoText('');
+      setInlineTodoText('');
       if (noteId && !options.skipNoteReload) loadNotes();
       return todo;
     } catch (e) { console.error('Create todo error:', e); }
