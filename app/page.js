@@ -1083,8 +1083,6 @@ export default function App() {
     // Optimistic local update
     setEditingNote(prev => ({ ...prev, transcript, transcript_status: 'done' }));
     setNotes(prev => prev.map(n => n.id === noteId ? { ...n, transcript, transcript_status: 'done' } : n));
-    // Switch to transcript tab so the user can review the transcript
-    setNoteTab('transcript');
     // Persist transcript to DB
     try {
       await api(`notes/${noteId}`, {
@@ -1095,7 +1093,10 @@ export default function App() {
       console.error('Failed to save transcript:', e);
       toast.error('Could not save transcript');
     }
-    toast.success('Transcript ready — go to Summary tab to generate an AI summary');
+    toast.success('Transcript ready', {
+      action: { label: 'Go to Summary →', onClick: () => setNoteTab('summary') },
+      duration: 8000,
+    });
   }, [editingNote]);
 
   const retrySummary = useCallback(async (preset = null) => {

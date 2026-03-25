@@ -185,30 +185,42 @@ async function getNotes(supabase, searchParams, ownerId) {
   }
 
   // Meeting hide filter: exclude notes from hidden meetings (pre-pagination for correct count)
+  // A note is excluded only if ALL its source tags are hidden (no visible source tag remains).
   if (excludeTagParam) {
     const excludeTags = excludeTagParam.split(',');
     const excludeUntagged = excludeTags.includes('untagged');
     const realExcludeTags = excludeTags.filter(t => t !== 'untagged');
+    const realExcludeSet = new Set(realExcludeTags);
 
-    let excludedNoteIds = [];
-    if (realExcludeTags.length > 0) {
-      const { data: ntRows } = await supabase.from('note_tags').select('note_id, tags(type)').in('tag_id', realExcludeTags);
-      excludedNoteIds = [...new Set((ntRows || []).filter(nt => nt.tags?.type === 'source').map(nt => nt.note_id))];
+    // Fetch all source tags for this owner
+    const { data: srcTags } = await supabase.from('tags').select('id').eq('owner_id', ownerId).eq('type', 'source');
+    const allSrcTagIds = (srcTags || []).map(t => t.id);
+
+    // Fetch all note→source-tag mappings
+    const noteToSrcTags = new Map();
+    if (allSrcTagIds.length > 0) {
+      const { data: ntRows } = await supabase.from('note_tags').select('note_id, tag_id').in('tag_id', allSrcTagIds);
+      for (const row of (ntRows || [])) {
+        if (!noteToSrcTags.has(row.note_id)) noteToSrcTags.set(row.note_id, new Set());
+        noteToSrcTags.get(row.note_id).add(row.tag_id);
+      }
+    }
+
+    // A note should be excluded only when it has no visible source tag (all its source tags are hidden)
+    const notesToExclude = [];
+    for (const [noteId, tagIds] of noteToSrcTags) {
+      const hasVisibleTag = [...tagIds].some(tagId => !realExcludeSet.has(tagId));
+      if (!hasVisibleTag) notesToExclude.push(noteId);
     }
 
     if (excludeUntagged) {
-      // Also hiding untagged notes: keep only notes that have at least one source tag, minus excluded ones
-      const { data: srcTags } = await supabase.from('tags').select('id').eq('owner_id', ownerId).eq('type', 'source');
-      const srcTagIds = (srcTags || []).map(t => t.id);
-      if (srcTagIds.length === 0) return NextResponse.json({ data: [], total: 0 });
-      const { data: ntRows } = await supabase.from('note_tags').select('note_id').in('tag_id', srcTagIds);
-      const sourceTaggedIds = [...new Set((ntRows || []).map(nt => nt.note_id))];
-      const allowedIds = sourceTaggedIds.filter(id => !excludedNoteIds.includes(id));
-      if (allowedIds.length === 0) return NextResponse.json({ data: [], total: 0 });
-      query = query.in('id', allowedIds);
-    } else if (excludedNoteIds.length > 0) {
-      // Only hiding specific tagged meetings; untagged notes remain visible
-      query = query.not('id', 'in', `(${excludedNoteIds.join(',')})`);
+      // Also hiding untagged notes: keep only notes that have at least one visible source tag
+      const visibleTaggedIds = [...noteToSrcTags.keys()].filter(id => !notesToExclude.includes(id));
+      if (visibleTaggedIds.length === 0) return NextResponse.json({ data: [], total: 0 });
+      query = query.in('id', visibleTaggedIds);
+    } else {
+      // Only hiding specific meetings; untagged notes and notes with any visible tag remain
+      if (notesToExclude.length > 0) query = query.not('id', 'in', `(${notesToExclude.join(',')})`);
     }
   }
 
