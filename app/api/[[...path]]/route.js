@@ -162,49 +162,54 @@ async function getUser(supabase) {
 async function getNotes(supabase, searchParams, ownerId) {
   const search = searchParams.get('search') || '';
   const tagId = searchParams.get('tag') || '';
+  const excludeTagParam = searchParams.get('exclude_tag') || '';
   const limit = parseInt(searchParams.get('limit')) || 50;
   const offset = parseInt(searchParams.get('offset')) || 0;
   const statusFilter = searchParams.get('status');
   const hasTranscript = searchParams.get('has_transcript') === 'true';
-
-  // Pre-resolve tag filter to note IDs so count and pagination are accurate
-  let tagFilteredNoteIds = null;
-  let includeUntagged = false;
-  if (tagId) {
-    const filterTags = tagId.split(',');
-    const hasUntagged = filterTags.includes('untagged');
-    const realTags = filterTags.filter(t => t !== 'untagged');
-    includeUntagged = hasUntagged;
-
-    if (realTags.length > 0) {
-      const { data: ntRows } = await supabase
-        .from('note_tags')
-        .select('note_id, tags(type)')
-        .in('tag_id', realTags);
-      const matchingIds = [...new Set(
-        (ntRows || []).filter(nt => nt.tags?.type === 'source').map(nt => nt.note_id)
-      )];
-      if (!hasUntagged) {
-        // Only specific tags — filter to exact matches
-        tagFilteredNoteIds = matchingIds;
-      } else {
-        // Tags + untagged combined — we'll handle untagged client-side below
-        tagFilteredNoteIds = matchingIds;
-      }
-    }
-  }
 
   // Build base query
   let query = supabase.from('notes').select('*, note_tags(tag_id, tags(*))', { count: 'exact' })
     .eq('owner_id', ownerId)
     .order('created_at', { ascending: false });
 
-  if (tagFilteredNoteIds !== null && !includeUntagged) {
-    // Exact tag filter: apply server-side so count and range are correct
-    if (tagFilteredNoteIds.length === 0) {
-      return NextResponse.json({ data: [], total: 0 });
+  // Sidebar tag filter: show only notes with these source tags (pre-pagination for correct count)
+  if (tagId) {
+    const filterTags = tagId.split(',').filter(t => t !== 'untagged');
+    if (filterTags.length > 0) {
+      const { data: ntRows } = await supabase.from('note_tags').select('note_id, tags(type)').in('tag_id', filterTags);
+      const matchingIds = [...new Set((ntRows || []).filter(nt => nt.tags?.type === 'source').map(nt => nt.note_id))];
+      if (matchingIds.length === 0) return NextResponse.json({ data: [], total: 0 });
+      query = query.in('id', matchingIds);
     }
-    query = query.in('id', tagFilteredNoteIds);
+  }
+
+  // Meeting hide filter: exclude notes from hidden meetings (pre-pagination for correct count)
+  if (excludeTagParam) {
+    const excludeTags = excludeTagParam.split(',');
+    const excludeUntagged = excludeTags.includes('untagged');
+    const realExcludeTags = excludeTags.filter(t => t !== 'untagged');
+
+    let excludedNoteIds = [];
+    if (realExcludeTags.length > 0) {
+      const { data: ntRows } = await supabase.from('note_tags').select('note_id, tags(type)').in('tag_id', realExcludeTags);
+      excludedNoteIds = [...new Set((ntRows || []).filter(nt => nt.tags?.type === 'source').map(nt => nt.note_id))];
+    }
+
+    if (excludeUntagged) {
+      // Also hiding untagged notes: keep only notes that have at least one source tag, minus excluded ones
+      const { data: srcTags } = await supabase.from('tags').select('id').eq('owner_id', ownerId).eq('type', 'source');
+      const srcTagIds = (srcTags || []).map(t => t.id);
+      if (srcTagIds.length === 0) return NextResponse.json({ data: [], total: 0 });
+      const { data: ntRows } = await supabase.from('note_tags').select('note_id').in('tag_id', srcTagIds);
+      const sourceTaggedIds = [...new Set((ntRows || []).map(nt => nt.note_id))];
+      const allowedIds = sourceTaggedIds.filter(id => !excludedNoteIds.includes(id));
+      if (allowedIds.length === 0) return NextResponse.json({ data: [], total: 0 });
+      query = query.in('id', allowedIds);
+    } else if (excludedNoteIds.length > 0) {
+      // Only hiding specific tagged meetings; untagged notes remain visible
+      query = query.not('id', 'in', `(${excludedNoteIds.join(',')})`);
+    }
   }
 
   if (hasTranscript) {
@@ -226,18 +231,6 @@ async function getNotes(supabase, searchParams, ownerId) {
     const { note_tags, ...rest } = n;
     return { ...rest, tags };
   });
-
-  // Client-side tag filtering only for the untagged case (can't be done server-side)
-  if (tagId && includeUntagged) {
-    const filterTags = tagId.split(',');
-    const realTags = filterTags.filter(t => t !== 'untagged');
-    result = result.filter(note => {
-      const sourceTags = note.tags.filter(t => t.type === 'source');
-      const noteTagIds = sourceTags.map(t => t.id);
-      if (realTags.length === 0) return sourceTags.length === 0;
-      return sourceTags.length === 0 || realTags.some(rt => noteTagIds.includes(rt));
-    });
-  }
 
   // Status filtering requires checking todos for each note
   if (statusFilter) {
@@ -416,9 +409,12 @@ async function getTodos(supabase, searchParams, ownerId) {
   const search = searchParams.get('search') || '';
   const status = searchParams.get('status') || 'all';
   const tagId = searchParams.get('tag') || '';
-  const projectId = searchParams.get('project_id') || '';
+  const excludeProjectParam = searchParams.get('exclude_project') || '';
   const dateFrom = searchParams.get('date_from') || '';
   const dateTo = searchParams.get('date_to') || '';
+  const dueNoDate = searchParams.get('due_no_date') === 'true';
+  const createdFrom = searchParams.get('created_from') || '';
+  const createdTo = searchParams.get('created_to') || '';
   const limit = parseInt(searchParams.get('limit')) || 50;
   const offset = parseInt(searchParams.get('offset')) || 0;
   const sort = searchParams.get('sort') || 'created_at';
@@ -440,11 +436,54 @@ async function getTodos(supabase, searchParams, ownerId) {
   if (search) {
     query = query.ilike('text', `%${search}%`);
   }
-  if (dateFrom) {
-    query = query.gte('due_date', dateFrom);
+
+  // Due date filters
+  if (dueNoDate) {
+    query = query.is('due_date', null);
+  } else {
+    if (dateFrom) query = query.gte('due_date', dateFrom);
+    if (dateTo) query = query.lte('due_date', dateTo);
   }
-  if (dateTo) {
-    query = query.lte('due_date', dateTo);
+
+  // Created date filters
+  if (createdFrom) query = query.gte('created_at', createdFrom);
+  if (createdTo) query = query.lte('created_at', createdTo + 'T23:59:59.999Z');
+
+  // Pre-filter by tag before pagination (fixes count accuracy)
+  if (tagId) {
+    const filterTags = tagId.split(',');
+    const { data: ttRows } = await supabase.from('todo_tags').select('todo_id').in('tag_id', filterTags);
+    const matchingIds = [...new Set((ttRows || []).map(tt => tt.todo_id))];
+    if (matchingIds.length === 0) return NextResponse.json({ data: [], total: 0 });
+    query = query.in('id', matchingIds);
+  }
+
+  // Project hide filter: exclude todos from hidden projects (pre-pagination for correct count)
+  if (excludeProjectParam) {
+    const excludeProjects = excludeProjectParam.split(',');
+    const excludeUntagged = excludeProjects.includes('__untagged');
+    const realExcludeProjectIds = excludeProjects.filter(id => id !== '__untagged');
+
+    let excludedTodoIds = [];
+    if (realExcludeProjectIds.length > 0) {
+      const { data: ttRows } = await supabase.from('todo_tags').select('todo_id, tags(type)').in('tag_id', realExcludeProjectIds);
+      excludedTodoIds = [...new Set((ttRows || []).filter(tt => tt.tags?.type === 'project').map(tt => tt.todo_id))];
+    }
+
+    if (excludeUntagged) {
+      // Also hiding untagged todos: keep only todos that have at least one project tag, minus excluded ones
+      const { data: projTags } = await supabase.from('tags').select('id').eq('owner_id', ownerId).eq('type', 'project');
+      const projTagIds = (projTags || []).map(t => t.id);
+      if (projTagIds.length === 0) return NextResponse.json({ data: [], total: 0 });
+      const { data: ttRows } = await supabase.from('todo_tags').select('todo_id').in('tag_id', projTagIds);
+      const projTaggedIds = [...new Set((ttRows || []).map(tt => tt.todo_id))];
+      const allowedIds = projTaggedIds.filter(id => !excludedTodoIds.includes(id));
+      if (allowedIds.length === 0) return NextResponse.json({ data: [], total: 0 });
+      query = query.in('id', allowedIds);
+    } else if (excludedTodoIds.length > 0) {
+      // Only hiding specific projects; untagged todos remain visible
+      query = query.not('id', 'in', `(${excludedTodoIds.join(',')})`);
+    }
   }
 
   if (sort === 'position') {
@@ -464,26 +503,6 @@ async function getTodos(supabase, searchParams, ownerId) {
     const { todo_tags, ...rest } = t;
     return { ...rest, tags };
   });
-
-  // Tag filtering (post-query)
-  if (tagId) {
-    const filterTags = tagId.split(',');
-    result = result.filter(todo => todo.tags.some(t => filterTags.includes(t.id)));
-  }
-
-  // Project filtering (post-query)
-  if (projectId) {
-    const pIds = projectId.split(',');
-    const wantsUntagged = pIds.includes('__untagged');
-    const validTags = pIds.filter(id => id !== '__untagged');
-
-    result = result.filter(todo => {
-      const projectTags = todo.tags.filter(t => t.type === 'project');
-      if (wantsUntagged && projectTags.length === 0) return true;
-      if (validTags.length > 0 && projectTags.some(t => validTags.includes(t.id))) return true;
-      return false;
-    });
-  }
 
   return NextResponse.json({ data: result, total: count || result.length });
 }

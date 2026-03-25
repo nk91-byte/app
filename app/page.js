@@ -654,7 +654,7 @@ export default function App() {
       viewLayout: selectedViewLayout || viewLayout,
       noteGroupBy,
       noteDateFilter,
-      noteMeetingFilters,
+      hiddenMeetingTagIds: noteMeetingFilters,
       noteStatusFilters,
       noteVisibleFields,
       noteGroupOrder: noteGroupOrder.length > 0 ? noteGroupOrder : [...sourceTags.map(t => t.id), '__untagged'],
@@ -671,7 +671,7 @@ export default function App() {
     setViewLayout(v.viewLayout || 'list');
     setNoteGroupBy(v.noteGroupBy || 'none');
     setNoteDateFilter(v.noteDateFilter || 'all');
-    setNoteMeetingFilters(v.noteMeetingFilters || []);
+    setNoteMeetingFilters(v.hiddenMeetingTagIds || []);
     setNoteStatusFilters(v.noteStatusFilters || []);
     setNoteVisibleFields(v.noteVisibleFields || ['date', 'actionItems', 'tags', 'preview']);
     const order = v.noteGroupOrder || v.sourceTagOrder;
@@ -705,7 +705,7 @@ export default function App() {
       viewLayout,
       noteGroupBy,
       noteDateFilter,
-      noteMeetingFilters,
+      hiddenMeetingTagIds: noteMeetingFilters,
       noteStatusFilters,
       noteVisibleFields,
       noteGroupOrder: noteGroupOrder.length > 0 ? noteGroupOrder : [...sourceTags.map(t => t.id), '__untagged'],
@@ -720,7 +720,7 @@ export default function App() {
       viewLayout: selectedViewLayout || viewLayout,
       todoGroupBy,
       todoFilters,
-      todoProjectFilterIds,
+      hiddenProjectTagIds: todoProjectFilterIds,
       todoDateFilter,
       todoCreatedFilter,
       todoCreatedRangeFrom,
@@ -741,7 +741,7 @@ export default function App() {
     setViewLayout(v.viewLayout || 'list');
     setTodoGroupBy(v.todoGroupBy || 'none');
     setTodoFilters(v.todoFilters || ['open']);
-    setTodoProjectFilterIds(v.todoProjectFilterIds || []);
+    setTodoProjectFilterIds(v.hiddenProjectTagIds || []);
     setTodoDateFilter(Array.isArray(v.todoDateFilter) ? v.todoDateFilter : []);
     setTodoCreatedFilter(Array.isArray(v.todoCreatedFilter) ? v.todoCreatedFilter : v.todoCreatedFilter ? [v.todoCreatedFilter] : []);
     setTodoCreatedRangeFrom(v.todoCreatedRangeFrom || '');
@@ -785,7 +785,7 @@ export default function App() {
       viewLayout,
       todoGroupBy,
       todoFilters,
-      todoProjectFilterIds,
+      hiddenProjectTagIds: todoProjectFilterIds,
       todoDateFilter,
       todoCreatedFilter,
       todoCreatedRangeFrom,
@@ -856,9 +856,11 @@ export default function App() {
     try {
       const params = new URLSearchParams();
       if (search || searchQuery) params.set('search', search || searchQuery);
-      // Use meeting filter if set, otherwise use selected sidebar tag
-      const effectiveTag = noteMeetingFilters.length > 0 ? noteMeetingFilters.join(',') : tag ? tag : (selectedTagIds.length > 0 ? selectedTagIds.join(',') : '');
+      // Sidebar tag filter (show only notes with this source tag)
+      const effectiveTag = tag ? tag : (selectedTagIds.length > 0 ? selectedTagIds.join(',') : '');
       if (effectiveTag) params.set('tag', effectiveTag);
+      // Meeting hide filter (exclude notes from hidden meetings) — now server-side blacklist
+      if (noteMeetingFilters.length > 0) params.set('exclude_tag', noteMeetingFilters.join(','));
       if (noteStatusFilters.length > 0) params.set('status', noteStatusFilters.join(','));
       params.set('limit', LIMIT);
       params.set('offset', forceOffset != null ? forceOffset : noteOffset);
@@ -876,18 +878,62 @@ export default function App() {
 
 
 
-  const loadTodos = useCallback(async (append = false, forceOffset = 0) => {
+  const loadTodos = useCallback(async (append = false, forceOffset = null) => {
     try {
       const params = new URLSearchParams();
       if (searchQuery) params.set('search', searchQuery);
       if (todoFilters.length > 0) params.set('status', todoFilters.join(','));
-      if (todoProjectFilterIds.length > 0) params.set('project_id', todoProjectFilterIds.join(','));
-      // Custom date range filter (sent to API)
+      if (todoProjectFilterIds.length > 0) params.set('exclude_project', todoProjectFilterIds.join(','));
+
+      // Due date preset filters → compute date ranges for server-side pagination
+      if (todoDateFilter.length > 0) {
+        const n = new Date();
+        const fmt = d => d.toISOString().split('T')[0];
+        const today = fmt(n);
+        const yesterday = fmt(new Date(+n - 864e5));
+        const tomorrow = fmt(new Date(+n + 864e5));
+        const dow = n.getDay() === 0 ? 6 : n.getDay() - 1;
+        const wkStart = new Date(n); wkStart.setDate(n.getDate() - dow);
+        const wkEnd = new Date(wkStart); wkEnd.setDate(wkStart.getDate() + 6);
+        const nwStart = new Date(wkEnd); nwStart.setDate(wkEnd.getDate() + 1);
+        const nwEnd = new Date(nwStart); nwEnd.setDate(nwStart.getDate() + 6);
+        const hasNoDate = todoDateFilter.includes('no_date');
+        const presets = todoDateFilter.filter(f => f !== 'no_date');
+        if (hasNoDate && presets.length === 0) {
+          params.set('due_no_date', 'true');
+        } else if (presets.length > 0) {
+          const rangeMap = { past_due: { from: null, to: yesterday }, today: { from: today, to: today }, tomorrow: { from: tomorrow, to: tomorrow }, this_week: { from: fmt(wkStart), to: fmt(wkEnd) }, next_week: { from: fmt(nwStart), to: fmt(nwEnd) } };
+          const froms = presets.map(f => rangeMap[f]?.from).filter(Boolean);
+          const tos = presets.map(f => rangeMap[f]?.to).filter(Boolean);
+          if (froms.length > 0 && !todoDateRangeFrom) params.set('date_from', [...froms].sort()[0]);
+          if (tos.length > 0 && !todoDateRangeTo) params.set('date_to', [...tos].sort().at(-1));
+          if (hasNoDate) params.set('due_no_date', 'true');
+        }
+      }
+      // Custom date range filter (may override preset range above)
       if (todoDateRangeFrom) params.set('date_from', todoDateRangeFrom);
       if (todoDateRangeTo) params.set('date_to', todoDateRangeTo);
 
+      // Created date preset filters → compute date ranges for server-side pagination
+      if (todoCreatedFilter.length > 0) {
+        const n = new Date();
+        const fmt = d => d.toISOString().split('T')[0];
+        const today = fmt(n);
+        const yesterday = fmt(new Date(+n - 864e5));
+        const dow = n.getDay() === 0 ? 6 : n.getDay() - 1;
+        const wkStart = new Date(n); wkStart.setDate(n.getDate() - dow);
+        const rangeMap = { today: { from: today, to: today }, yesterday: { from: yesterday, to: yesterday }, this_week: { from: fmt(wkStart), to: today } };
+        const froms = todoCreatedFilter.map(f => rangeMap[f]?.from).filter(Boolean);
+        const tos = todoCreatedFilter.map(f => rangeMap[f]?.to).filter(Boolean);
+        if (froms.length > 0 && !todoCreatedRangeFrom) params.set('created_from', [...froms].sort()[0]);
+        if (tos.length > 0 && !todoCreatedRangeTo) params.set('created_to', [...tos].sort().at(-1));
+      }
+      if (todoCreatedRangeFrom) params.set('created_from', todoCreatedRangeFrom);
+      if (todoCreatedRangeTo) params.set('created_to', todoCreatedRangeTo);
+
       params.set('limit', LIMIT);
-      params.set('offset', append ? todoOffset : forceOffset);
+      // Fix: always use forceOffset when provided, not stale closure todoOffset
+      params.set('offset', forceOffset != null ? forceOffset : todoOffset);
 
       const response = await api(`todos?${params}`);
 
@@ -898,7 +944,7 @@ export default function App() {
       }
       setTodoTotal(response.total);
     } catch (e) { console.error('Load todos error:', e); }
-  }, [api, searchQuery, todoFilters, todoProjectFilterIds, todoDateFilter, todoDateRangeFrom, todoDateRangeTo, todoOffset]);
+  }, [api, searchQuery, todoFilters, todoProjectFilterIds, todoDateFilter, todoDateRangeFrom, todoDateRangeTo, todoCreatedFilter, todoCreatedRangeFrom, todoCreatedRangeTo, todoOffset]);
 
   const loadSourceTags = useCallback(async () => {
     try {
@@ -924,7 +970,7 @@ export default function App() {
         loadTodos(false, 0);
       }
     }
-  }, [view, searchQuery, selectedTagIds, todoFilters, todoProjectFilterIds, todoDateFilter, noteMeetingFilters, noteStatusFilters, dbReady]);
+  }, [view, searchQuery, selectedTagIds, todoFilters, todoProjectFilterIds, todoDateFilter, todoDateRangeFrom, todoDateRangeTo, todoCreatedFilter, todoCreatedRangeFrom, todoCreatedRangeTo, noteMeetingFilters, noteStatusFilters, dbReady]);
 
   const loadMoreNotes = useCallback(() => {
     const nextOffset = noteOffset + LIMIT;
@@ -1626,7 +1672,7 @@ export default function App() {
       if (todoProjectFilterIds.length > 0) {
         const projectTag = t.tags?.find(tag => tag.type === 'project');
         const projectId = projectTag ? projectTag.id : '__untagged';
-        if (!todoProjectFilterIds.includes(projectId)) return false;
+        if (todoProjectFilterIds.includes(projectId)) return false;
       }
       if (todoDateFilter.length > 0) {
         const dueDate = t.due_date ? t.due_date.split('T')[0] : null;
@@ -1888,7 +1934,6 @@ export default function App() {
                         reorderNoteGroups={reorderNoteGroups}
                         noteGroupOrder={noteGroupOrder}
                         boardColumnSize={boardColumnSize}
-                        noteMeetingFilters={noteMeetingFilters}
                         setNoteMeetingFilters={setNoteMeetingFilters}
                       />
                     ) : (

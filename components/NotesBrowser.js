@@ -70,7 +70,6 @@ export default function NotesBrowser({
     reorderNoteGroups,
     noteGroupOrder,
     boardColumnSize = 'medium',
-    noteMeetingFilters,
     setNoteMeetingFilters
 }) {
     const columnWidthClass = boardColumnSize === 'small' ? 'w-52' : boardColumnSize === 'large' ? 'w-[400px]' : 'w-80';
@@ -161,21 +160,16 @@ export default function NotesBrowser({
                                 <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
                             )}
                             <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide truncate">{group.label || 'All'}</h3>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: '#5BA89D20', color: '#5BA89D' }}>{group.notes.length}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: '#5BA89D20', color: '#5BA89D' }}>{group.key === 'all' ? noteTotal : group.notes.length}</span>
                             <div className="flex-1" />
                             {noteGroupBy === 'meeting' && setNoteMeetingFilters && (
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        if (noteMeetingFilters.length === 0) {
-                                            const allIds = [...sourceTags.map(t => t.id), 'untagged'];
-                                            const tagId = group.key === '__untagged' ? 'untagged' : group.key;
-                                            setNoteMeetingFilters(allIds.filter(id => id !== tagId));
-                                        } else {
-                                            const tagId = group.key === '__untagged' ? 'untagged' : group.key;
-                                            const next = noteMeetingFilters.filter(id => id !== tagId);
-                                            setNoteMeetingFilters(next.length === 0 ? ['__none__'] : next);
-                                        }
+                                        const tagId = group.key === '__untagged' ? 'untagged' : group.key;
+                                        setNoteMeetingFilters(prev =>
+                                            prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]
+                                        );
                                     }}
                                     className="p-0.5 rounded text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted transition-colors"
                                     title={`Hide ${group.label || 'group'}`}
@@ -360,7 +354,7 @@ export default function NotesBrowser({
                             <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
                         )}
                         <h3 className="text-[10px] font-semibold text-foreground uppercase tracking-wide">{group.label}</h3>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: '#5BA89D20', color: '#5BA89D' }}>{group.notes.length}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: '#5BA89D20', color: '#5BA89D' }}>{group.key === 'all' ? noteTotal : group.notes.length}</span>
                         <div className={`flex-1 border-b ${group.color ? 'opacity-30' : 'border-border/50'}`} style={group.color ? { borderColor: group.color } : {}} />
                     </div>
                 );
@@ -430,6 +424,8 @@ export default function NotesBrowser({
                                                                     style={{ backgroundColor: tag.color + '20', color: tag.color }}
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
+                                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                                        setTagDropdownPos({ top: rect.bottom + 4, left: rect.left });
                                                                         setTagDropdownNoteId(tagDropdownNoteId === note.id ? null : note.id);
                                                                         setNewInlineTagName('');
                                                                     }}
@@ -441,6 +437,8 @@ export default function NotesBrowser({
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
+                                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                                        setTagDropdownPos({ top: rect.bottom + 4, left: rect.left });
                                                                         setTagDropdownNoteId(tagDropdownNoteId === note.id ? null : note.id);
                                                                         setNewInlineTagName('');
                                                                     }}
@@ -449,10 +447,10 @@ export default function NotesBrowser({
                                                                     No tag
                                                                 </button>
                                                             )}
-                                                            {visibleFields?.includes('tags') && tagDropdownNoteId === note.id && (
-                                                                <div className="relative inline-block">
-                                                                    <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setTagDropdownNoteId(null); }} />
-                                                                    <div className="absolute left-0 top-2 z-50 w-48 bg-popover border rounded-lg shadow-lg py-1" onClick={e => e.stopPropagation()}>
+                                                            {visibleFields?.includes('tags') && tagDropdownNoteId === note.id && tagDropdownPos && (
+                                                                <>
+                                                                    <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setTagDropdownNoteId(null); setTagDropdownPos(null); }} />
+                                                                    <div className="fixed z-50 w-48 bg-popover border rounded-lg shadow-lg py-1" style={{ top: tagDropdownPos.top, left: tagDropdownPos.left }} onClick={e => e.stopPropagation()}>
                                                                         <div className="px-2 py-1.5 border-b">
                                                                             <input
                                                                                 type="text"
@@ -493,7 +491,7 @@ export default function NotesBrowser({
                                                                             })}
                                                                         </div>
                                                                     </div>
-                                                                </div>
+                                                                </>
                                                             )}
                                                         </div>
                                                     </div>

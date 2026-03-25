@@ -148,12 +148,10 @@ export default function TopNavBar({
                     <Popover open={noteMeetingFilterOpen} onOpenChange={setNoteMeetingFilterOpen}>
                         <PopoverTrigger asChild>
                             <button className="relative h-7 pl-2 pr-6 rounded-md border text-xs bg-background appearance-none cursor-pointer hover:border-primary/50 focus:outline-none focus:ring-1 focus:ring-ring flex items-center min-w-[120px]">
-                                {(() => {
-                                    if (noteMeetingFilters.length === 0) return <span>All Meetings</span>;
-                                    const hidden = sourceTags.length - noteMeetingFilters.length;
-                                    if (hidden > 0) return <span>{hidden} Hidden</span>;
-                                    return <span>All Meetings</span>;
-                                })()}
+                                {noteMeetingFilters.length === 0
+                                    ? <span>All Meetings</span>
+                                    : <span>{noteMeetingFilters.length} Hidden</span>
+                                }
                                 <CircleDot size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                             </button>
                         </PopoverTrigger>
@@ -167,28 +165,22 @@ export default function TopNavBar({
                                 </button>
                                 <button
                                     className="flex-1 text-center px-2 py-1.5 text-xs rounded-sm hover:bg-muted transition-colors"
-                                    onClick={() => setNoteMeetingFilters(['__none__'])}
+                                    onClick={() => setNoteMeetingFilters([...sourceTags.map(s => s.id), 'untagged'])}
                                 >
                                     Hide All
                                 </button>
                             </div>
                             <div className="h-px bg-border my-1" />
                             {[{ id: 'untagged', name: 'Inbox (Untagged)', color: '#9ca3af' }, ...sourceTags].map(t => {
-                                const isVisible = noteMeetingFilters.length === 0 || noteMeetingFilters.includes(t.id);
+                                const isVisible = !noteMeetingFilters.includes(t.id);
                                 return (
                                     <button
                                         key={t.id}
                                         className={`w-full text-left px-2 py-1.5 text-xs rounded-sm hover:bg-muted transition-colors flex items-center gap-1.5 justify-between ${!isVisible ? 'opacity-50' : ''}`}
                                         onClick={() => {
-                                            if (noteMeetingFilters.length === 0) {
-                                                setNoteMeetingFilters(sourceTags.map(s => s.id).filter(id => id !== t.id));
-                                            } else if (noteMeetingFilters.includes(t.id)) {
-                                                const next = noteMeetingFilters.filter(id => id !== t.id);
-                                                setNoteMeetingFilters(next.length === 0 ? [] : next);
-                                            } else {
-                                                const next = [...noteMeetingFilters, t.id];
-                                                setNoteMeetingFilters(next.length === sourceTags.length ? [] : next);
-                                            }
+                                            setNoteMeetingFilters(prev =>
+                                                prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id]
+                                            );
                                             setSelectedTagIds([]);
                                         }}
                                     >
@@ -381,23 +373,10 @@ export default function TopNavBar({
                     <Popover open={todoProjectFilterOpen} onOpenChange={setTodoProjectFilterOpen}>
                         <PopoverTrigger asChild>
                             <button className="relative h-7 pl-2 pr-6 rounded-md border text-xs bg-background appearance-none cursor-pointer hover:border-primary/50 focus:outline-none focus:ring-1 focus:ring-ring flex items-center min-w-[120px]">
-                                {(() => {
-                                    if (todoProjectFilterIds.length === 0) return <span>All Projects</span>;
-                                    if (todoProjectFilterIds.length === 1) {
-                                        const id = todoProjectFilterIds[0];
-                                        if (id === '__untagged') return <span>Inbox</span>;
-                                        if (id === '__none__') return <span>None</span>;
-                                        const activeTag = projectTags.find(t => t.id === id);
-                                        if (!activeTag) return <span>All Projects</span>;
-                                        return (
-                                            <>
-                                                <span className="w-1.5 h-1.5 rounded-full mr-1.5 flex-shrink-0" style={{ backgroundColor: activeTag.color }} />
-                                                <span className="truncate">{activeTag.name}</span>
-                                            </>
-                                        );
-                                    }
-                                    return <span>{todoProjectFilterIds.length} Projects</span>;
-                                })()}
+                                {todoProjectFilterIds.length === 0
+                                    ? <span>All Projects</span>
+                                    : <span>{todoProjectFilterIds.length} Hidden</span>
+                                }
                                 <FolderOpen size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                             </button>
                         </PopoverTrigger>
@@ -407,51 +386,37 @@ export default function TopNavBar({
                                     className={`flex-1 text-center px-2 py-1.5 text-xs rounded-sm hover:bg-muted transition-colors ${todoProjectFilterIds.length === 0 ? 'bg-accent/50 font-medium' : ''}`}
                                     onClick={() => setTodoProjectFilterIds([])}
                                 >
-                                    All
+                                    Show All
                                 </button>
                                 <button
-                                    className={`flex-1 text-center px-2 py-1.5 text-xs rounded-sm hover:bg-muted transition-colors ${todoProjectFilterIds.length === 1 && todoProjectFilterIds[0] === '__none__' ? 'bg-accent/50 font-medium' : ''}`}
-                                    onClick={() => setTodoProjectFilterIds(['__none__'])}
+                                    className="flex-1 text-center px-2 py-1.5 text-xs rounded-sm hover:bg-muted transition-colors"
+                                    onClick={() => setTodoProjectFilterIds([...projectTags.map(t => t.id), '__untagged'])}
                                 >
-                                    None
+                                    Hide All
                                 </button>
                             </div>
                             <div className="h-px bg-border my-1" />
                             <button
-                                className={`w-full text-left px-2 py-1.5 text-xs rounded-sm hover:bg-muted transition-colors flex items-center gap-1.5 justify-between ${(todoProjectFilterIds.length > 0 && todoProjectFilterIds[0] !== '__none__' && !todoProjectFilterIds.includes('__untagged')) || (todoProjectFilterIds.length === 1 && todoProjectFilterIds[0] === '__none__') ? 'opacity-50' : ''}`}
-                                onClick={() => {
-                                    setTodoProjectFilterIds(prev => {
-                                        if (prev.length === 0 || (prev.length === 1 && prev[0] === '__none__')) return ['__untagged']; // Clicking when all/none are shown: isolate this one
-                                        if (prev.includes('__untagged')) {
-                                            const next = prev.filter(id => id !== '__untagged');
-                                            return next.length === 0 ? [] : next;
-                                        }
-                                        return [...prev, '__untagged'];
-                                    });
-                                }}
+                                className={`w-full text-left px-2 py-1.5 text-xs rounded-sm hover:bg-muted transition-colors flex items-center gap-1.5 justify-between ${todoProjectFilterIds.includes('__untagged') ? 'opacity-50' : ''}`}
+                                onClick={() => setTodoProjectFilterIds(prev =>
+                                    prev.includes('__untagged') ? prev.filter(id => id !== '__untagged') : [...prev, '__untagged']
+                                )}
                             >
                                 <div className="flex items-center gap-1.5 min-w-0">
                                     <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-muted-foreground/30" />
                                     <span className="truncate">Inbox</span>
                                 </div>
-                                {(todoProjectFilterIds.length === 0 || todoProjectFilterIds.includes('__untagged')) && (todoProjectFilterIds[0] !== '__none__') ? <Eye size={10} className="text-muted-foreground" /> : <EyeOff size={10} className="text-muted-foreground" />}
+                                {!todoProjectFilterIds.includes('__untagged') ? <Eye size={10} className="text-muted-foreground" /> : <EyeOff size={10} className="text-muted-foreground" />}
                             </button>
                             {projectTags.map(t => {
-                                const isVisible = (todoProjectFilterIds.length === 0 || todoProjectFilterIds.includes(t.id)) && (todoProjectFilterIds[0] !== '__none__');
+                                const isVisible = !todoProjectFilterIds.includes(t.id);
                                 return (
                                     <button
                                         key={t.id}
                                         className={`w-full text-left px-2 py-1.5 text-xs rounded-sm hover:bg-muted transition-colors flex items-center gap-1.5 justify-between ${!isVisible ? 'opacity-50' : ''}`}
-                                        onClick={() => {
-                                            setTodoProjectFilterIds(prev => {
-                                                if (prev.length === 0 || (prev.length === 1 && prev[0] === '__none__')) return [t.id]; // Clicking when all/none are shown: isolate this one
-                                                if (prev.includes(t.id)) {
-                                                    const next = prev.filter(id => id !== t.id);
-                                                    return next.length === 0 ? [] : next;
-                                                }
-                                                return [...prev, t.id];
-                                            });
-                                        }}
+                                        onClick={() => setTodoProjectFilterIds(prev =>
+                                            prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id]
+                                        )}
                                     >
                                         <div className="flex items-center gap-1.5 min-w-0">
                                             <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
