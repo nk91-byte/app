@@ -603,6 +603,7 @@ export default function App() {
         method: 'PUT',
         body: JSON.stringify({ value: val })
       });
+      localStorage.removeItem('noteflow_prefs_cache');
     } catch (e) {
       console.error('Save board column size error:', e);
     }
@@ -616,6 +617,7 @@ export default function App() {
         method: 'PUT',
         body: JSON.stringify({ value: views })
       });
+      localStorage.removeItem('noteflow_prefs_cache');
     } catch (e) {
       console.error('Save notebook views error:', e);
     }
@@ -628,6 +630,7 @@ export default function App() {
         method: 'PUT',
         body: JSON.stringify({ value: views })
       });
+      localStorage.removeItem('noteflow_prefs_cache');
     } catch (e) {
       console.error('Save todo views error:', e);
     }
@@ -641,6 +644,7 @@ export default function App() {
         method: 'PUT',
         body: JSON.stringify({ value: { presets, default_id: newDefaultId } })
       });
+      localStorage.removeItem('noteflow_prefs_cache');
     } catch (e) {
       console.error('Save summary presets error:', e);
     }
@@ -830,16 +834,34 @@ export default function App() {
   }, []);
 
   // ===== DATA LOADERS =====
+  const PREFS_CACHE_KEY = 'noteflow_prefs_cache';
+  const PREFS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+  const applyPrefs = (prefs) => {
+    if (prefs.notebook_saved_views) setNotebookSavedViews(prefs.notebook_saved_views);
+    if (prefs.todo_saved_views) setTodoSavedViews(prefs.todo_saved_views);
+    if (prefs.board_column_size) setBoardColumnSize(prefs.board_column_size);
+    if (prefs.summary_instructions) {
+      setSummaryPresets(prefs.summary_instructions.presets || []);
+      setDefaultPresetId(prefs.summary_instructions.default_id || null);
+    }
+  };
+
   const loadPreferences = useCallback(async () => {
     try {
+      // Use localStorage cache if fresh (avoids a DB round-trip on every page load)
+      try {
+        const cached = JSON.parse(localStorage.getItem(PREFS_CACHE_KEY) || 'null');
+        if (cached && Date.now() - cached.ts < PREFS_CACHE_TTL) {
+          applyPrefs(cached.data);
+          return;
+        }
+      } catch {}
       const prefs = await api('preferences');
-      if (prefs.notebook_saved_views) setNotebookSavedViews(prefs.notebook_saved_views);
-      if (prefs.todo_saved_views) setTodoSavedViews(prefs.todo_saved_views);
-      if (prefs.board_column_size) setBoardColumnSize(prefs.board_column_size);
-      if (prefs.summary_instructions) {
-        setSummaryPresets(prefs.summary_instructions.presets || []);
-        setDefaultPresetId(prefs.summary_instructions.default_id || null);
-      }
+      applyPrefs(prefs);
+      try {
+        localStorage.setItem(PREFS_CACHE_KEY, JSON.stringify({ data: prefs, ts: Date.now() }));
+      } catch {}
     } catch (e) {
       console.error('Load preferences error:', e);
     }

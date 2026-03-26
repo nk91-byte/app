@@ -168,10 +168,12 @@ async function getNotes(supabase, searchParams, ownerId) {
   const statusFilter = searchParams.get('status');
   const hasTranscript = searchParams.get('has_transcript') === 'true';
 
-  // Build base query
-  let query = supabase.from('notes').select('*, note_tags(tag_id, tags(*))', { count: 'exact' })
-    .eq('owner_id', ownerId)
-    .order('created_at', { ascending: false });
+  // Build base query — exclude transcript/summary/transcript_status from list responses;
+  // those fields are only needed when a single note is opened (getNote fetches * for that).
+  let query = supabase.from('notes').select(
+    'id, owner_id, title, content, created_at, updated_at, ai_action_items, note_tags(tag_id, tags(*))',
+    { count: 'exact' }
+  ).eq('owner_id', ownerId).order('created_at', { ascending: false });
 
   // Sidebar tag filter: show only notes with these source tags (pre-pagination for correct count)
   if (tagId) {
