@@ -66,6 +66,21 @@ CREATE INDEX IF NOT EXISTS idx_todos_archived_at ON todos(archived_at);
 CREATE INDEX IF NOT EXISTS idx_todos_created_at ON todos(created_at);
 CREATE INDEX IF NOT EXISTS idx_tags_owner_id ON tags(owner_id);
 
+-- Tag filtering: the primary keys on note_tags/todo_tags cover lookups by note/todo id,
+-- but NOT lookups by tag_id (e.g. "all notes with this tag"). These cover that direction.
+CREATE INDEX IF NOT EXISTS idx_note_tags_tag_id ON note_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_todo_tags_tag_id ON todo_tags(tag_id);
+
+-- Due date filtering and sorting on todos
+CREATE INDEX IF NOT EXISTS idx_todos_due_date ON todos(due_date);
+
+-- Status filtering: open todos = is_done false AND archived_at null (most common query)
+CREATE INDEX IF NOT EXISTS idx_todos_status ON todos(is_done, archived_at);
+
+-- Combined owner + date: the most common query pattern (my notes, sorted by date)
+CREATE INDEX IF NOT EXISTS idx_notes_owner_created ON notes(owner_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_todos_owner_created ON todos(owner_id, created_at DESC);
+
 -- ===== ROW LEVEL SECURITY =====
 
 ALTER TABLE notes ENABLE ROW LEVEL SECURITY;
