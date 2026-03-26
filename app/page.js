@@ -822,7 +822,7 @@ export default function App() {
     async function init() {
       try {
         setDbReady(true);
-        cleanupOldAudio().catch(() => {}); // remove stale audio blobs older than 7 days
+        setTimeout(() => cleanupOldAudio().catch(() => {}), 10000); // deferred so it doesn't compete with startup queries
         await Promise.all([loadNotes(), loadTodos(), loadSourceTags(), loadProjectTags(), loadPreferences()]);
       } catch (e) {
         console.error('Init error:', e);
