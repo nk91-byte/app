@@ -331,7 +331,7 @@ function TodoItemRow({ todo, depth = 0, isDragOverlay = false, editingTodoId, se
           )}
         </button>
         <span
-          className={`flex-1 text-sm cursor-pointer line-clamp-2 break-words leading-tight ${todo.is_done ? 'line-through text-muted-foreground' : ''}`}
+          className={`flex-1 text-xs cursor-pointer line-clamp-2 break-words leading-tight ${todo.is_done ? 'line-through text-muted-foreground' : ''}`}
           onClick={() => { setEditingTodoId(todo.id); setEditingTodoText(todo.text); }}
         >
           {todo.text || <span className="text-muted-foreground italic">Empty todo</span>}

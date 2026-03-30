@@ -362,7 +362,7 @@ export default function TodosBrowser({
                                                                     value={inlineTodoText}
                                                                     onChange={e => setInlineTodoText(e.target.value)}
                                                                     placeholder="New action..."
-                                                                    className="h-7 text-sm flex-1 border-none focus-visible:ring-0 shadow-none px-0"
+                                                                    className="h-7 text-xs flex-1 border-none focus-visible:ring-0 shadow-none px-0"
                                                                     onKeyDown={e => {
                                                                         if (e.key === 'Enter' && inlineTodoText.trim()) {
                                                                             createTodoInGroup(inlineTodoText.trim(), group);
@@ -385,7 +385,7 @@ export default function TodosBrowser({
                                                         ) : (
                                                             <button
                                                                 onClick={() => { setInlineAddingGroupId(group.key); setInlineTodoText(''); }}
-                                                                className="flex items-center gap-2 py-1 px-3 text-sm text-muted-foreground hover:bg-muted/50 rounded-md transition-colors w-full text-left opacity-60 hover:opacity-100 focus-visible:opacity-100"
+                                                                className="flex items-center gap-2 py-1 px-3 text-xs text-muted-foreground hover:bg-muted/50 rounded-md transition-colors w-full text-left opacity-60 hover:opacity-100 focus-visible:opacity-100"
                                                             >
                                                                 <div className="w-5" />
                                                                 <Plus size={14} /> New action
@@ -412,7 +412,7 @@ export default function TodosBrowser({
                                 </div>
                             ) : activeDragTodo ? (
                                 <div className="bg-background border rounded-md shadow-lg px-3 py-2 flex items-center gap-2 opacity-90 cursor-grabbing">
-                                    <span className={`text-sm ${activeDragTodo.is_done ? 'line-through text-muted-foreground' : ''}`}>
+                                    <span className={`text-xs ${activeDragTodo.is_done ? 'line-through text-muted-foreground' : ''}`}>
                                         {activeDragTodo.text || 'Empty todo'}
                                     </span>
                                     {activeDragTodo.tags?.map(tag => (
