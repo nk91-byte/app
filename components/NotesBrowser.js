@@ -202,7 +202,7 @@ export default function NotesBrowser({
                                                     {visibleFields?.includes('preview') && note.content && (() => {
                                                         const parsed = typeof note.content === 'string' ? (() => { try { return JSON.parse(note.content); } catch { return null; } })() : note.content;
                                                         const preview = parsed ? getContentPreview(parsed) : (typeof note.content === 'string' ? note.content.replace(/<[^>]*>/g, '').slice(0, 100) : '');
-                                                        return preview ? <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{preview}</p> : null;
+                                                        return preview ? <p className="text-xs text-foreground mt-1 line-clamp-2">{preview}</p> : null;
                                                     })()}
                                                     {(visibleFields?.includes('date') || visibleFields?.includes('actionItems')) && (
                                                         <div className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground flex-wrap">
@@ -395,7 +395,7 @@ export default function NotesBrowser({
                                                         {visibleFields?.includes('preview') && note.content && (() => {
                                                             const parsed = typeof note.content === 'string' ? (() => { try { return JSON.parse(note.content); } catch { return null; } })() : note.content;
                                                             const preview = parsed ? getContentPreview(parsed) : (typeof note.content === 'string' ? note.content.replace(/<[^>]*>/g, '').slice(0, 120) : '');
-                                                            return preview ? <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{preview}</p> : null;
+                                                            return preview ? <p className="text-xs text-foreground mt-1 line-clamp-1">{preview}</p> : null;
                                                         })()}
                                                         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                                             {visibleFields?.includes('date') && (

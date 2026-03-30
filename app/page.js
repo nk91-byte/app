@@ -2633,7 +2633,7 @@ export default function App() {
                                     <p className="text-[11px] font-semibold uppercase tracking-wider text-orange-500 mb-1">{section.title}</p>
                                     <ul className="space-y-0.5">
                                       {(section.points || []).map((point, pi) => (
-                                        <li key={pi} className="flex gap-2 text-[13px] text-foreground/75 leading-snug">
+                                        <li key={pi} className="flex gap-2 text-[13px] text-foreground/90 leading-snug">
                                           <span className="mt-1.5 w-1 h-1 rounded-full bg-muted-foreground/30 flex-shrink-0" />
                                           {point}
                                         </li>
