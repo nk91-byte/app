@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
 const ASSEMBLYAI_KEY = process.env.ASSEMBLYAI_API_KEY;
 const BASE = 'https://api.assemblyai.com/v2';
@@ -7,6 +8,10 @@ const BASE = 'https://api.assemblyai.com/v2';
 // Returns: { transcript_id }
 export async function POST(request) {
   try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     if (!ASSEMBLYAI_KEY) {
       return NextResponse.json({ error: 'ASSEMBLYAI_API_KEY is not configured' }, { status: 500 });
     }
@@ -53,6 +58,10 @@ export async function POST(request) {
 // Returns: { status, transcript? } or { transcripts: [{id, created, preview}] }
 export async function GET(request) {
   try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { searchParams } = new URL(request.url);
     const transcriptId = searchParams.get('id');
 

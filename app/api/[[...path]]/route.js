@@ -275,7 +275,8 @@ async function getNotes(supabase, searchParams, ownerId) {
   }
 
   if (search) {
-    query = query.or(`title.ilike.%${search}%,content::text.ilike.%${search}%`);
+    const safeSearch = search.replace(/,/g, '');
+    query = query.or(`title.ilike.%${safeSearch}%,content::text.ilike.%${safeSearch}%`);
   }
 
   query = query.range(offset, offset + limit - 1);
@@ -459,7 +460,8 @@ async function getTodos(supabase, searchParams, ownerId) {
   }
 
   if (search) {
-    query = query.ilike('text', `%${search}%`);
+    const safeSearch = search.replace(/,/g, '');
+    query = query.ilike('text', `%${safeSearch}%`);
   }
 
   // Due date filters
