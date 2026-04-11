@@ -1,5 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/service';
-import { searchNotes, getNote, listTodos, listTags, createNote, createTodo } from '@/lib/mcp/tools';
+import { searchNotes, getNote, listTodos, listTags, createNote, createTodo, updateNote, updateTodo } from '@/lib/mcp/tools';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -87,6 +87,34 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'update_note',
+    description: 'Update the title and/or text content of an existing note. Replaces the full text body — does not affect task items (todos) embedded in the note.',
+    inputSchema: {
+      type: 'object',
+      required: ['id'],
+      properties: {
+        id:    { type: 'string', description: 'UUID of the note to update' },
+        title: { type: 'string', description: 'New title (omit to keep existing)' },
+        text:  { type: 'string', description: 'New plain text body (omit to keep existing). Use newlines to separate paragraphs.' },
+      },
+    },
+  },
+  {
+    name: 'update_todo',
+    description: 'Update an existing todo item. Can change the text, notes, done status, and due date.',
+    inputSchema: {
+      type: 'object',
+      required: ['id'],
+      properties: {
+        id:       { type: 'string', description: 'UUID of the todo to update' },
+        text:     { type: 'string', description: 'New todo title/text (omit to keep existing)' },
+        notes:    { type: 'string', description: 'Plain text notes/description for the todo (omit to keep existing)' },
+        is_done:  { type: 'boolean', description: 'Mark as done (true) or reopen (false)' },
+        due_date: { type: 'string', description: 'New due date in YYYY-MM-DD format (omit to keep existing)' },
+      },
+    },
+  },
 ];
 
 // ===== TOOL DISPATCHER =====
@@ -102,6 +130,8 @@ async function callTool(name, args) {
     case 'list_tags':    return await listTags(supabase, ownerId, args);
     case 'create_note':  return await createNote(supabase, ownerId, args);
     case 'create_todo':  return await createTodo(supabase, ownerId, args);
+    case 'update_note':  return await updateNote(supabase, ownerId, args);
+    case 'update_todo':  return await updateTodo(supabase, ownerId, args);
     default: throw new Error(`Unknown tool: ${name}`);
   }
 }
