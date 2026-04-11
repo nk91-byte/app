@@ -1,5 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/service';
-import { searchNotes, getNote, listTodos, listTags, createNote, createTodo, updateNote, updateTodo } from '@/lib/mcp/tools';
+import { searchNotes, getNote, listTodos, listTags, createNote, createTodo, updateNote, updateTodo, tagNote, tagTodo, createTag } from '@/lib/mcp/tools';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -115,6 +115,42 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'tag_note',
+    description: 'Add an existing tag to a note by tag name. Does not remove existing tags.',
+    inputSchema: {
+      type: 'object',
+      required: ['id', 'tag_name'],
+      properties: {
+        id:       { type: 'string', description: 'UUID of the note' },
+        tag_name: { type: 'string', description: 'Name of the tag to apply (case-insensitive)' },
+      },
+    },
+  },
+  {
+    name: 'tag_todo',
+    description: 'Add an existing tag to a todo by tag name. Does not remove existing tags.',
+    inputSchema: {
+      type: 'object',
+      required: ['id', 'tag_name'],
+      properties: {
+        id:       { type: 'string', description: 'UUID of the todo' },
+        tag_name: { type: 'string', description: 'Name of the tag to apply (case-insensitive)' },
+      },
+    },
+  },
+  {
+    name: 'create_tag',
+    description: 'Create a new tag. Use type "project" for tags applied to todos, "source" for meeting note sources.',
+    inputSchema: {
+      type: 'object',
+      required: ['name'],
+      properties: {
+        name: { type: 'string', description: 'Tag name' },
+        type: { type: 'string', enum: ['project', 'source'], description: 'Tag type (default: project)' },
+      },
+    },
+  },
 ];
 
 // ===== TOOL DISPATCHER =====
@@ -132,6 +168,9 @@ async function callTool(name, args) {
     case 'create_todo':  return await createTodo(supabase, ownerId, args);
     case 'update_note':  return await updateNote(supabase, ownerId, args);
     case 'update_todo':  return await updateTodo(supabase, ownerId, args);
+    case 'tag_note':     return await tagNote(supabase, ownerId, args);
+    case 'tag_todo':     return await tagTodo(supabase, ownerId, args);
+    case 'create_tag':   return await createTag(supabase, ownerId, args);
     default: throw new Error(`Unknown tool: ${name}`);
   }
 }
