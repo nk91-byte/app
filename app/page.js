@@ -1243,7 +1243,7 @@ export default function App() {
 
       const todo = await api('todos', {
         method: 'POST',
-        body: JSON.stringify({ text, note_id: noteId || null, tag_ids: tagIds || [], position, due_date: options.due_date || null, content: options.content || null, skip_content_update: options.skipContentUpdate || false }),
+        body: JSON.stringify({ text, note_id: noteId || null, tag_ids: tagIds || [], position, due_date: options.due_date || null, content: options.content || null, skip_content_update: options.skipContentUpdate || false, is_done: options.is_done || false, archived_at: options.archived_at || null }),
       });
       setTodos(prev => [...prev, todo]);
       setInlineTodoText('');

@@ -99,14 +99,11 @@ export default function TodosBrowser({
                 options.due_date = d.toISOString();
             }
         }
-        const todo = await createTodo(text, null, tagIds, options);
-        if (todoGroupBy === 'status' && todo) {
-            if (group.key === 'done') {
-                updateTodo(todo.id, { is_done: true });
-            } else if (group.key === 'archived') {
-                updateTodo(todo.id, { archived_at: new Date().toISOString() });
-            }
+        if (todoGroupBy === 'status') {
+            if (group.key === 'done') options.is_done = true;
+            else if (group.key === 'archived') options.archived_at = new Date().toISOString();
         }
+        await createTodo(text, null, tagIds, options);
     };
 
     return (

@@ -535,21 +535,26 @@ async function getTodos(supabase, searchParams, ownerId) {
 }
 
 async function createTodo(supabase, body, ownerId) {
-  const { text, content, note_id, parent_todo_id, position, tag_ids, due_date, skip_content_update } = body;
+  const { text, content, note_id, parent_todo_id, position, tag_ids, due_date, skip_content_update, is_done, archived_at } = body;
   const id = uuidv4();
   const timestamp = now();
 
-  const { error } = await supabase.from('todos').insert({
+  const insertData = {
     id, owner_id: ownerId, note_id: note_id || null, parent_todo_id: parent_todo_id || null,
     text: text || '', content: content || null, position: position || null,
     due_date: due_date || null, created_at: timestamp, updated_at: timestamp,
-    skip_content_update: skip_content_update || false
-  });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    skip_content_update: skip_content_update || false,
+    ...(is_done ? { is_done: true, done_at: timestamp } : {}),
+    ...(archived_at ? { archived_at } : {}),
+  };
 
-  if (tag_ids && tag_ids.length > 0) {
-    await supabase.from('todo_tags').insert(tag_ids.map(tagId => ({ todo_id: id, tag_id: tagId })));
-  }
+  const [{ error }] = await Promise.all([
+    supabase.from('todos').insert(insertData),
+    tag_ids?.length > 0
+      ? supabase.from('todo_tags').insert(tag_ids.map(tagId => ({ todo_id: id, tag_id: tagId })))
+      : Promise.resolve({ error: null }),
+  ]);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // skip_content_update: used for AI-claimed todos which are tracked in ai_action_items,
   // not in the editor content. Inserting into content would cause saveNote to archive the
@@ -562,8 +567,10 @@ async function createTodo(supabase, body, ownerId) {
     }
   }
 
-  const { data: todo } = await supabase.from('todos').select('*').eq('id', id).single();
-  const { data: todoTags } = await supabase.from('todo_tags').select('tags(*)').eq('todo_id', id);
+  const [{ data: todo }, { data: todoTags }] = await Promise.all([
+    supabase.from('todos').select('*').eq('id', id).single(),
+    supabase.from('todo_tags').select('tags(*)').eq('todo_id', id),
+  ]);
   const tags = (todoTags || []).map(tt => tt.tags).filter(Boolean);
   return NextResponse.json({ ...todo, tags }, { status: 201 });
 }
