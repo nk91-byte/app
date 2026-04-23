@@ -70,7 +70,8 @@ export default function NotesBrowser({
     reorderNoteGroups,
     noteGroupOrder,
     boardColumnSize = 'medium',
-    setNoteMeetingFilters
+    setNoteMeetingFilters,
+    createNoteInGroup
 }) {
     const columnWidthClass = boardColumnSize === 'small' ? 'w-52' : boardColumnSize === 'large' ? 'w-[400px]' : 'w-80';
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -175,6 +176,18 @@ export default function NotesBrowser({
                                     title={`Hide ${group.label || 'group'}`}
                                 >
                                     <EyeOff size={12} />
+                                </button>
+                            )}
+                            {createNoteInGroup && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        createNoteInGroup(group, noteGroupBy);
+                                    }}
+                                    className="w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground/50 hover:text-foreground hover:bg-background/80 transition-colors"
+                                    title="New note"
+                                >
+                                    <Plus size={13} />
                                 </button>
                             )}
                         </div>
@@ -315,6 +328,14 @@ export default function NotesBrowser({
                                     })}
                                     {group.notes.length === 0 && (
                                         <div className="text-center py-8 text-muted-foreground text-xs italic">No notes</div>
+                                    )}
+                                    {createNoteInGroup && (
+                                        <button
+                                            onClick={() => createNoteInGroup(group, noteGroupBy)}
+                                            className="flex items-center gap-2 mt-2 py-1.5 px-2 text-xs text-muted-foreground hover:bg-muted/50 rounded-md transition-colors w-full text-left"
+                                        >
+                                            <Plus size={12} /> New note
+                                        </button>
                                     )}
                                 </div>
                             </Column>
@@ -500,6 +521,15 @@ export default function NotesBrowser({
                                         );
                                     })}
                                 </div>
+                            )}
+                            {!isCollapsed && createNoteInGroup && (
+                                <button
+                                    onClick={() => createNoteInGroup(group, noteGroupBy)}
+                                    className="flex items-center gap-2 py-1 px-3 text-xs text-muted-foreground hover:bg-muted/50 rounded-md transition-colors w-full text-left opacity-60 hover:opacity-100 focus-visible:opacity-100"
+                                >
+                                    <div className="w-5" />
+                                    <Plus size={14} /> New note
+                                </button>
                             )}
                         </Wrapper>
                     );

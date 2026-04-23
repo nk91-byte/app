@@ -3,7 +3,7 @@ import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Input } from '@/components/ui/input';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 function SortableBoardCard({ todo, children, editingTodoId, setEditingTodoId, setEditingTodoText }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: todo.id });
@@ -71,6 +71,7 @@ export default function TodosBrowser({
     const columnWidthClass = boardColumnSize === 'small' ? 'w-52' : boardColumnSize === 'large' ? 'w-[400px]' : 'w-80';
     const [boardTagPickerId, setBoardTagPickerId] = useState(null);
     const [boardTagDropdownPos, setBoardTagDropdownPos] = useState(null);
+    const justSubmittedRef = useRef(false);
 
     const createTodoInGroup = async (text, group) => {
         let tagIds = [];
@@ -293,6 +294,7 @@ export default function TodosBrowser({
                                                                     className="h-7 text-xs flex-1 border-none focus-visible:ring-0 shadow-none px-0"
                                                                     onKeyDown={e => {
                                                                         if (e.key === 'Enter' && inlineTodoText.trim()) {
+                                                                            justSubmittedRef.current = true;
                                                                             createTodoInGroup(inlineTodoText.trim(), group);
                                                                             setInlineTodoText('');
                                                                         }
@@ -302,7 +304,9 @@ export default function TodosBrowser({
                                                                         }
                                                                     }}
                                                                     onBlur={() => {
-                                                                        if (inlineTodoText.trim()) {
+                                                                        if (justSubmittedRef.current) {
+                                                                            justSubmittedRef.current = false;
+                                                                        } else if (inlineTodoText.trim()) {
                                                                             createTodoInGroup(inlineTodoText.trim(), group);
                                                                         }
                                                                         setInlineAddingGroupId(null);
@@ -362,6 +366,7 @@ export default function TodosBrowser({
                                                                     className="h-7 text-xs flex-1 border-none focus-visible:ring-0 shadow-none px-0"
                                                                     onKeyDown={e => {
                                                                         if (e.key === 'Enter' && inlineTodoText.trim()) {
+                                                                            justSubmittedRef.current = true;
                                                                             createTodoInGroup(inlineTodoText.trim(), group);
                                                                             setInlineTodoText('');
                                                                         }
@@ -371,7 +376,9 @@ export default function TodosBrowser({
                                                                         }
                                                                     }}
                                                                     onBlur={() => {
-                                                                        if (inlineTodoText.trim()) {
+                                                                        if (justSubmittedRef.current) {
+                                                                            justSubmittedRef.current = false;
+                                                                        } else if (inlineTodoText.trim()) {
                                                                             createTodoInGroup(inlineTodoText.trim(), group);
                                                                         }
                                                                         setInlineAddingGroupId(null);

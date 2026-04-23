@@ -1043,6 +1043,27 @@ export default function App() {
     } catch (e) { console.error('Create note error:', e); }
   };
 
+  const createNoteInGroup = async (group, groupBy) => {
+    try {
+      const note = await api('notes', {
+        method: 'POST',
+        body: JSON.stringify({ title: '', content: { type: 'doc', content: [{ type: 'paragraph' }] } }),
+      });
+      // Tag the new note based on the group
+      if (groupBy === 'meeting' && group.key !== '__untagged' && group.key !== 'all') {
+        await api('note-tags', { method: 'POST', body: JSON.stringify({ note_id: note.id, tag_id: group.key }) });
+        const tagObj = sourceTags.find(t => t.id === group.key);
+        setNotes(prev => [{ ...note, tags: tagObj ? [tagObj] : [] }, ...prev]);
+        setEditingNote({ ...note, tags: tagObj ? [tagObj] : [] });
+      } else {
+        setNotes(prev => [{ ...note, tags: [] }, ...prev]);
+        setEditingNote({ ...note, tags: [] });
+      }
+      setSelectedNoteId(note.id);
+      setNoteTab('notes');
+    } catch (e) { console.error('Create note in group error:', e); }
+  };
+
   const saveNote = async (noteId, title, content, tagIds, created_at = undefined) => {
     try {
       const updated = await api(`notes/${noteId}`, {
@@ -1933,6 +1954,7 @@ export default function App() {
                         formatDate={formatDate}
                         extractActionItems={extractActionItems}
                         createNote={createNote}
+                        createNoteInGroup={createNoteInGroup}
                         noteTotal={noteTotal}
                         noteOffset={noteOffset}
                         loadMoreNotes={loadMoreNotes}
