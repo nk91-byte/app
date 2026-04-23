@@ -4,12 +4,23 @@ import { createClient } from '@/lib/supabase/server';
 const ASSEMBLYAI_KEY = process.env.ASSEMBLYAI_API_KEY;
 const BASE = 'https://api.assemblyai.com/v2';
 
+async function getUserFromRequest(supabase, request) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) return user;
+  const auth = request.headers.get('authorization');
+  if (auth?.startsWith('Bearer ')) {
+    const { data: { user: u } } = await supabase.auth.getUser(auth.slice(7));
+    if (u) return u;
+  }
+  return null;
+}
+
 // POST: upload audio to AssemblyAI and submit a transcription job
 // Returns: { transcript_id }
 export async function POST(request) {
   try {
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getUserFromRequest(supabase, request);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     if (!ASSEMBLYAI_KEY) {
@@ -59,7 +70,7 @@ export async function POST(request) {
 export async function GET(request) {
   try {
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getUserFromRequest(supabase, request);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { searchParams } = new URL(request.url);
