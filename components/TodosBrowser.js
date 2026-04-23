@@ -154,7 +154,7 @@ export default function TodosBrowser({
                                                                         <span className={`text-xs flex-1 line-clamp-2 break-words leading-tight ${todo.is_done ? 'line-through text-muted-foreground' : ''}`}>{todo.text || 'Empty todo'}</span>
                                                                     </div>
                                                                     {visibleFields?.includes('tags') && (() => {
-                                                                        const displayTags = todo.tags?.filter(t => todoGroupBy !== 'project' || t.type !== 'project');
+                                                                        const displayTags = todo.tags;
                                                                         return (
                                                                             <div className="flex flex-wrap gap-1 mt-1 ml-5 relative">
                                                                                 {displayTags && displayTags.length > 0 ? displayTags.map(t => (

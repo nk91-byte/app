@@ -336,7 +336,7 @@ function TodoItemRow({ todo, depth = 0, isDragOverlay = false, editingTodoId, se
         >
           {todo.text || <span className="text-muted-foreground italic">Empty todo</span>}
         </span>
-        {todoVisibleFields.includes('tags') && (todoGroupBy === 'project' ? todo.tags?.filter(t => t.type !== 'project') : todo.tags)?.map(tag => (
+        {todoVisibleFields.includes('tags') && todo.tags?.map(tag => (
           <span
             key={tag.id}
             className="text-xs px-1.5 py-0.5 rounded-full flex-shrink-0 cursor-pointer hover:opacity-70"

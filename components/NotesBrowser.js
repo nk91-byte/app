@@ -241,7 +241,7 @@ export default function NotesBrowser({
                                                         </div>
                                                     )}
                                                     {visibleFields?.includes('tags') && (() => {
-                                                        const displayTags = noteGroupBy === 'meeting' ? note.tags?.filter(t => t.type !== 'source') : note.tags;
+                                                        const displayTags = note.tags;
                                                         return (
                                                             <div className="flex flex-wrap items-center gap-1 mt-1.5 relative">
                                                                 {displayTags && displayTags.length > 0 ? displayTags.map(t => (
@@ -438,7 +438,7 @@ export default function NotesBrowser({
                                                                     </span>
                                                                 );
                                                             })()}
-                                                            {visibleFields?.includes('tags') && (noteGroupBy === 'meeting' ? note.tags?.filter(t => t.type !== 'source') : note.tags)?.map(tag => (
+                                                            {visibleFields?.includes('tags') && note.tags?.map(tag => (
                                                                 <span
                                                                     key={tag.id}
                                                                     className="text-xs px-1.5 py-0.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity"
