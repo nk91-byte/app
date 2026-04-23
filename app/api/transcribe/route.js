@@ -113,6 +113,7 @@ export async function GET(request) {
       return NextResponse.json({
         status: 'completed',
         transcript: {
+          text: data.text || '',
           // utterances contains speaker-labeled segments with timestamps
           utterances: (data.utterances || []).map((u) => ({
             speaker: u.speaker,
