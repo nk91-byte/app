@@ -9,8 +9,12 @@ async function getUserFromRequest(supabase, request) {
   if (user) return user;
   const auth = request.headers.get('authorization');
   if (auth?.startsWith('Bearer ')) {
-    const { data: { user: u } } = await supabase.auth.getUser(auth.slice(7));
-    if (u) return u;
+    const token = auth.slice(7);
+    const { data: { user: u } } = await supabase.auth.getUser(token);
+    if (u) {
+      await supabase.auth.setSession({ access_token: token, refresh_token: token });
+      return u;
+    }
   }
   return null;
 }

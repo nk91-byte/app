@@ -161,7 +161,10 @@ async function getUser(supabase, request) {
   if (auth?.startsWith('Bearer ')) {
     const token = auth.slice(7);
     const { data: { user: tokenUser } } = await supabase.auth.getUser(token);
-    if (tokenUser) return tokenUser;
+    if (tokenUser) {
+      await supabase.auth.setSession({ access_token: token, refresh_token: token });
+      return tokenUser;
+    }
   }
   return null;
 }
