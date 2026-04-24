@@ -151,22 +151,9 @@ function now() {
   return new Date().toISOString();
 }
 
-async function getUser(supabase, request) {
-  // Try cookie-based session first (web browser clients)
+async function getUser(supabase) {
   const { data: { user } } = await supabase.auth.getUser();
-  if (user) return user;
-
-  // Fall back to Bearer token (native app clients)
-  const auth = request.headers.get('authorization');
-  if (auth?.startsWith('Bearer ')) {
-    const token = auth.slice(7);
-    const { data: { user: tokenUser } } = await supabase.auth.getUser(token);
-    if (tokenUser) {
-      await supabase.auth.setSession({ access_token: token, refresh_token: token });
-      return tokenUser;
-    }
-  }
-  return null;
+  return user ?? null;
 }
 
 // ===== NOTES HANDLERS =====
@@ -904,7 +891,7 @@ async function upsertPreference(supabase, ownerId, key, value) {
 export async function GET(request, { params }) {
   try {
     const supabase = createClient();
-    const user = await getUser(supabase, request);
+    const user = await getUser(supabase);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const path = params?.path || [];
@@ -926,7 +913,7 @@ export async function GET(request, { params }) {
 export async function POST(request, { params }) {
   try {
     const supabase = createClient();
-    const user = await getUser(supabase, request);
+    const user = await getUser(supabase);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const path = params?.path || [];
@@ -951,7 +938,7 @@ export async function POST(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     const supabase = createClient();
-    const user = await getUser(supabase, request);
+    const user = await getUser(supabase);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const path = params?.path || [];
@@ -972,7 +959,7 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     const supabase = createClient();
-    const user = await getUser(supabase, request);
+    const user = await getUser(supabase);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const path = params?.path || [];
@@ -993,7 +980,7 @@ export async function DELETE(request, { params }) {
 export async function PATCH(request, { params }) {
   try {
     const supabase = createClient();
-    const user = await getUser(supabase, request);
+    const user = await getUser(supabase);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const path = params?.path || [];

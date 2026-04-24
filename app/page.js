@@ -531,6 +531,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [dbReady, setDbReady] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
+  const [pendingRecordMode, setPendingRecordMode] = useState(null); // null | 'mic' | 'tab'
   const [editorToolbarOpen, setEditorToolbarOpen] = useState(false);
   const [showActionItems, setShowActionItems] = useState(false);
   const [inlineAddingGroupId, setInlineAddingGroupId] = useState(null);
@@ -1028,6 +1029,52 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedNoteId, tagDropdownNoteId]);
+
+  // ⌘⌥R = toggle mic-only recording, ⌘⌥M = toggle mic + meeting audio.
+  // If a note is open, toggles recording on it. Otherwise prompts for a title,
+  // creates a new note, and starts recording on it.
+  useEffect(() => {
+    const handler = async (e) => {
+      if (!e.metaKey || !e.altKey) return;
+      const code = e.code;
+      if (code !== 'KeyR' && code !== 'KeyM') return;
+      e.preventDefault();
+      const withTab = code === 'KeyM';
+      if (editingNote?.id) {
+        window.dispatchEvent(new CustomEvent('noteflow:record:toggle', { detail: { withTab } }));
+        return;
+      }
+      const title = window.prompt('Meeting title?');
+      if (!title || !title.trim()) return;
+      try {
+        const note = await api('notes', {
+          method: 'POST',
+          body: JSON.stringify({ title: title.trim(), content: { type: 'doc', content: [{ type: 'paragraph' }] } }),
+        });
+        setNotes(prev => [{ ...note, tags: [] }, ...prev]);
+        setView('notebook');
+        setSelectedNoteId(note.id);
+        setNoteTab('notes');
+        setEditingNote({ ...note, tags: [] });
+        setPendingRecordMode(withTab ? 'tab' : 'mic');
+      } catch (err) {
+        console.error('Hotkey create-note failed:', err);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [editingNote?.id]);
+
+  // Once a freshly created note is mounted, fire the record-toggle event.
+  useEffect(() => {
+    if (!pendingRecordMode || !editingNote?.id) return;
+    const withTab = pendingRecordMode === 'tab';
+    const t = setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('noteflow:record:toggle', { detail: { withTab } }));
+      setPendingRecordMode(null);
+    }, 150);
+    return () => clearTimeout(t);
+  }, [pendingRecordMode, editingNote?.id]);
 
   // ===== NOTE OPERATIONS =====
   const createNote = async () => {

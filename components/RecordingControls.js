@@ -75,6 +75,10 @@ export default function RecordingControls({ noteId, onTranscriptReady }) {
     getAudio(noteId).then(blob => setHasSavedAudio(!!blob)).catch(() => {});
   }, [noteId]);
 
+  // Keep a ref to current status so the window event listener can read it without re-binding
+  const statusRef = useRef(status);
+  useEffect(() => { statusRef.current = status; }, [status]);
+
   // Drive elapsed timer off recorderState
   useEffect(() => {
     if (recorderState === 'recording') {
@@ -133,6 +137,19 @@ export default function RecordingControls({ noteId, onTranscriptReady }) {
     }
     await runTranscription(blob);
   }, [stop, runTranscription]);
+
+  // Global hotkey bridge: page dispatches `noteflow:record:toggle` with { withTab }.
+  // Idle → start; recording/paused → stop; transcribing/error → ignore.
+  useEffect(() => {
+    const handler = (e) => {
+      const withTab = !!e.detail?.withTab;
+      const s = statusRef.current;
+      if (s === 'idle') handleStart(withTab);
+      else if (s === 'recording' || s === 'paused') handleStop();
+    };
+    window.addEventListener('noteflow:record:toggle', handler);
+    return () => window.removeEventListener('noteflow:record:toggle', handler);
+  }, [handleStart, handleStop]);
 
   const handleRetryFromSaved = useCallback(async () => {
     if (!noteId) return;
