@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS notes (
   title TEXT,
   content JSONB,
   created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  position INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS todos (
@@ -59,6 +60,7 @@ CREATE TABLE IF NOT EXISTS todo_tags (
 
 CREATE INDEX IF NOT EXISTS idx_notes_owner_id ON notes(owner_id);
 CREATE INDEX IF NOT EXISTS idx_notes_created_at ON notes(created_at);
+CREATE INDEX IF NOT EXISTS idx_notes_position ON notes(owner_id, position);
 CREATE INDEX IF NOT EXISTS idx_todos_owner_id ON todos(owner_id);
 CREATE INDEX IF NOT EXISTS idx_todos_note_id ON todos(note_id);
 CREATE INDEX IF NOT EXISTS idx_todos_parent_todo_id ON todos(parent_todo_id);

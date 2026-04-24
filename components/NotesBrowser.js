@@ -38,6 +38,31 @@ function SortableBoardColumn({ id, className, header, children }) {
     );
 }
 
+function SortableNote({ id, children }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+        position: 'relative',
+        zIndex: isDragging ? 50 : 'auto',
+    };
+    return (
+        <div ref={setNodeRef} style={style} className="group/sortable-note relative">
+            <div
+                {...attributes}
+                {...listeners}
+                className="absolute left-0 top-0 bottom-0 w-4 cursor-grab active:cursor-grabbing flex items-center justify-center opacity-0 group-hover/sortable-note:opacity-100 transition-opacity z-10"
+                style={{ left: '-16px' }}
+                onClick={e => e.stopPropagation()}
+            >
+                <GripVertical size={12} className="text-muted-foreground" />
+            </div>
+            {children}
+        </div>
+    );
+}
+
 export default function NotesBrowser({
     notes,
     loading,
@@ -71,7 +96,8 @@ export default function NotesBrowser({
     noteGroupOrder,
     boardColumnSize = 'medium',
     setNoteMeetingFilters,
-    createNoteInGroup
+    createNoteInGroup,
+    reorderNotesInGroup,
 }) {
     const columnWidthClass = boardColumnSize === 'small' ? 'w-52' : boardColumnSize === 'large' ? 'w-[400px]' : 'w-80';
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -396,14 +422,15 @@ export default function NotesBrowser({
                             {group.label && (
                                 <NoteGroupHeader group={group} isCollapsed={isCollapsed} onToggle={toggleCollapse} />
                             )}
-                            {!isCollapsed && (
-                                <div className="space-y-2">
-                                    {group.notes.map(note => {
+                            {!isCollapsed && (() => {
+                                const noteItems = group.notes.map(note => {
                                         const isSelected = selectedNoteId === note.id;
                                         const noteTagColor = note.tags?.find(t => t.type === 'project')?.color || note.tags?.[0]?.color;
+                                        const NoteWrap = isSortable ? SortableNote : 'div';
+                                        const noteWrapProps = isSortable ? { id: note.id } : {};
                                         return (
+                                            <NoteWrap key={note.id} {...noteWrapProps}>
                                             <div
-                                                key={note.id}
                                                 onClick={() => { setSelectedNoteId(note.id); setEditingNote(note); setTagDropdownNoteId(null); }}
                                                 className={`border rounded-lg transition-all cursor-pointer overflow-hidden ${isSelected ? 'ring-2 ring-primary/20 border-primary/30 bg-accent/30' : 'hover:border-primary/20 hover:bg-accent/10'}`}
                                                 style={noteTagColor ? { borderLeftColor: noteTagColor, borderLeftWidth: '3px' } : {}}
@@ -518,10 +545,23 @@ export default function NotesBrowser({
                                                     </div>
                                                 </div>
                                             </div>
+                                            </NoteWrap>
                                         );
-                                    })}
-                                </div>
-                            )}
+                                });
+                                if (isSortable) {
+                                    return (
+                                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={e => {
+                                            const { active, over } = e;
+                                            if (over && active.id !== over.id) reorderNotesInGroup?.(active.id, over.id);
+                                        }}>
+                                            <SortableContext items={group.notes.map(n => n.id)} strategy={verticalListSortingStrategy}>
+                                                <div className="space-y-2 pl-4">{noteItems}</div>
+                                            </SortableContext>
+                                        </DndContext>
+                                    );
+                                }
+                                return <div className="space-y-2">{noteItems}</div>;
+                            })()}
                             {!isCollapsed && createNoteInGroup && (
                                 <button
                                     onClick={() => createNoteInGroup(group, noteGroupBy)}

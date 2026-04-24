@@ -168,6 +168,32 @@ function getStatusLabel(todo) {
   return 'Open';
 }
 
+function inferDueDateForDrop(destGroup, overTodo, destGroupTodos) {
+  const now = new Date();
+  const fmt = d => d.toISOString().split('T')[0];
+  if (destGroup.key === '9999-99') return null;
+  if (destGroup.key === '02') return fmt(now);
+  if (destGroup.key === '03') {
+    const t = new Date(now); t.setDate(now.getDate() + 1); return fmt(t);
+  }
+  const overIndex = overTodo ? destGroupTodos.findIndex(t => t.id === overTodo.id) : destGroupTodos.length;
+  const prevTodo = overIndex > 0 ? destGroupTodos[overIndex - 1] : null;
+  if (prevTodo?.due_date) return prevTodo.due_date;
+  if (overTodo?.due_date) return overTodo.due_date;
+  if (destGroup.key === '01') {
+    const t = new Date(now); t.setDate(now.getDate() - 1); return fmt(t);
+  }
+  if (destGroup.key === '04') {
+    const dow = now.getDay() === 0 ? 7 : now.getDay();
+    const t = new Date(now); t.setDate(now.getDate() + (7 - dow)); return fmt(t);
+  }
+  if (destGroup.key === '05') {
+    const dow = now.getDay() === 0 ? 7 : now.getDay();
+    const t = new Date(now); t.setDate(now.getDate() + (8 - dow)); return fmt(t);
+  }
+  return `${destGroup.key}-01`;
+}
+
 function groupTodosHelper(todoTree, groupBy, projectTags) {
   if (groupBy === 'none') return [{ key: '__all', label: null, todos: todoTree }];
   const groups = new Map();
@@ -887,6 +913,7 @@ export default function App() {
       if (noteStatusFilters.length > 0) params.set('status', noteStatusFilters.join(','));
       params.set('limit', LIMIT);
       params.set('offset', forceOffset != null ? forceOffset : noteOffset);
+      params.set('sort', 'position');
 
       const response = await api(`notes?${params}`);
 
@@ -956,6 +983,7 @@ export default function App() {
 
       params.set('limit', 10000);
       params.set('offset', 0);
+      params.set('sort', 'position');
 
       const response = await api(`todos?${params}`);
 
@@ -1582,6 +1610,44 @@ export default function App() {
     }
   };
 
+  // ===== REORDER NOTES WITHIN A GROUP =====
+  const reorderNotesInGroup = async (activeId, overId) => {
+    const activeIdx = notes.findIndex(n => n.id === activeId);
+    const overIdx = notes.findIndex(n => n.id === overId);
+    if (activeIdx === -1 || overIdx === -1) return;
+
+    // Slots occupied by the active note's group peers, in global order
+    const activeNote = notes[activeIdx];
+    const activeMeetingTagId = activeNote.tags?.find(t => t.type === 'source')?.id || '__untagged';
+    const groupGlobalIndices = notes
+      .map((n, i) => {
+        const tagId = n.tags?.find(t => t.type === 'source')?.id || '__untagged';
+        return tagId === activeMeetingTagId ? i : -1;
+      })
+      .filter(i => i !== -1);
+
+    const oldSlot = groupGlobalIndices.indexOf(activeIdx);
+    const newSlot = groupGlobalIndices.indexOf(overIdx);
+    if (oldSlot === -1 || newSlot === -1) return;
+
+    const reorderedSlots = [...groupGlobalIndices];
+    const [moved] = reorderedSlots.splice(oldSlot, 1);
+    reorderedSlots.splice(newSlot, 0, moved);
+
+    const newNotes = [...notes];
+    for (let i = 0; i < groupGlobalIndices.length; i++) {
+      newNotes[groupGlobalIndices[i]] = notes[reorderedSlots[i]];
+    }
+    setNotes(newNotes.map((n, idx) => ({ ...n, position: idx })));
+
+    try {
+      await api('notes/batch-reorder', {
+        method: 'POST',
+        body: JSON.stringify({ orderedIds: newNotes.map(n => n.id) }),
+      });
+    } catch (e) { console.error('Note reorder error:', e); loadNotes(); }
+  };
+
   // ===== DRAG & DROP =====
   const handleDragStart = (event) => {
     const { active } = event;
@@ -1642,6 +1708,8 @@ export default function App() {
     if (!sourceGroup || !destGroup) return;
 
     if (sourceGroup.key === destGroup.key) {
+      // Date-grouped todos are sorted by due_date — position drag has no effect within the group
+      if (todoGroupBy === 'date') return;
       // Same group: reorder while preserving other items' exact global positions
       const oldIndex = sourceGroup.todos.findIndex(t => t.id === active.id);
       const newIndex = sourceGroup.todos.findIndex(t => t.id === over.id);
@@ -1671,7 +1739,7 @@ export default function App() {
       } catch (e) { console.error('Reorder error:', e); loadTodos(); }
 
     } else {
-      // Different group: move between groups (only supports project tag transfer)
+      // Different group: cross-group drag
       if (todoGroupBy === 'project') {
         const activeTodo = todos.find(t => t.id === active.id);
 
@@ -1689,15 +1757,12 @@ export default function App() {
           if (newTag) newTags.push(newTag);
         }
 
-        // Isolate and move dragged item's position relative strictly to the single target it dropped on
         const flatIds = todos.map(t => t.id);
         const activeGlobalIdx = flatIds.indexOf(active.id);
-        flatIds.splice(activeGlobalIdx, 1); // Extract active item
-
+        flatIds.splice(activeGlobalIdx, 1);
         const overGlobalIdx = flatIds.indexOf(over.id);
-        flatIds.splice(overGlobalIdx, 0, active.id); // Insert before 'over' item
+        flatIds.splice(overGlobalIdx, 0, active.id);
 
-        // Optimistic UI Update 
         setTodos(prev => {
           const map = {};
           prev.forEach(t => map[t.id] = t);
@@ -1706,19 +1771,84 @@ export default function App() {
         });
 
         try {
-          // Push Tag Change First
           await api(`todos/${active.id}`, {
             method: 'PUT',
             body: JSON.stringify({ tags: newTags.map(t => t.id) })
           });
-
-          // Execute Full Reorder Backup
           await api('todos/batch-reorder', {
             method: 'POST',
             body: JSON.stringify({ orderedIds: flatIds }),
           });
           loadTodos();
         } catch (e) { console.error('Reorder error:', e); loadTodos(); }
+
+      } else if (todoGroupBy === 'status') {
+        const activeTodo = todos.find(t => t.id === active.id);
+        const destStatus = destGroup.key; // 'open' | 'done' | 'archived'
+
+        const flatIds = todos.map(t => t.id);
+        const activeGlobalIdx = flatIds.indexOf(active.id);
+        flatIds.splice(activeGlobalIdx, 1);
+        const overGlobalIdx = flatIds.indexOf(over.id);
+        flatIds.splice(overGlobalIdx, 0, active.id);
+
+        const ts = new Date().toISOString();
+        let statusPatch = {};
+        if (destStatus === 'done') {
+          statusPatch = { is_done: true, done_at: ts, archived_at: null };
+        } else if (destStatus === 'open') {
+          statusPatch = { is_done: false, done_at: null, archived_at: null };
+        } else if (destStatus === 'archived' && !activeTodo.archived_at) {
+          statusPatch = { archived_at: ts };
+        }
+
+        setTodos(prev => {
+          const map = {};
+          prev.forEach(t => map[t.id] = t);
+          map[active.id] = { ...map[active.id], ...statusPatch };
+          return flatIds.map((id, index) => ({ ...map[id], position: index }));
+        });
+
+        try {
+          if (destStatus === 'done') {
+            // Unarchive first if needed, then mark done
+            if (activeTodo.archived_at) await api(`todos/${active.id}/archive`, { method: 'PATCH', body: '{}' });
+            if (!activeTodo.is_done) await api(`todos/${active.id}/toggle`, { method: 'PATCH', body: JSON.stringify({ is_done: true }) });
+          } else if (destStatus === 'open') {
+            if (activeTodo.archived_at) await api(`todos/${active.id}/archive`, { method: 'PATCH', body: '{}' });
+            if (activeTodo.is_done) await api(`todos/${active.id}/toggle`, { method: 'PATCH', body: JSON.stringify({ is_done: false }) });
+          } else if (destStatus === 'archived' && !activeTodo.archived_at) {
+            await api(`todos/${active.id}/archive`, { method: 'PATCH', body: '{}' });
+          }
+          await api('todos/batch-reorder', { method: 'POST', body: JSON.stringify({ orderedIds: flatIds }) });
+          loadTodos();
+        } catch (e) { console.error('Status group drag error:', e); loadTodos(); }
+
+      } else if (todoGroupBy === 'date') {
+        const overTodo = destGroup.todos.find(t => t.id === over.id);
+        const newDueDate = inferDueDateForDrop(destGroup, overTodo, destGroup.todos);
+
+        const flatIds = todos.map(t => t.id);
+        const activeGlobalIdx = flatIds.indexOf(active.id);
+        flatIds.splice(activeGlobalIdx, 1);
+        const overGlobalIdx = flatIds.indexOf(over.id);
+        flatIds.splice(overGlobalIdx, 0, active.id);
+
+        setTodos(prev => {
+          const map = {};
+          prev.forEach(t => map[t.id] = t);
+          map[active.id] = { ...map[active.id], due_date: newDueDate };
+          return flatIds.map((id, index) => ({ ...map[id], position: index }));
+        });
+
+        try {
+          await api(`todos/${active.id}`, {
+            method: 'PUT',
+            body: JSON.stringify({ due_date: newDueDate }),
+          });
+          await api('todos/batch-reorder', { method: 'POST', body: JSON.stringify({ orderedIds: flatIds }) });
+          loadTodos();
+        } catch (e) { console.error('Date group drag error:', e); loadTodos(); }
       }
     }
   };
@@ -2022,6 +2152,7 @@ export default function App() {
                         noteGroupOrder={noteGroupOrder}
                         boardColumnSize={boardColumnSize}
                         setNoteMeetingFilters={setNoteMeetingFilters}
+                        reorderNotesInGroup={reorderNotesInGroup}
                       />
                     ) : (
                       /* ===== TODO VIEW ===== */

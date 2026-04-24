@@ -169,10 +169,16 @@ async function getNotes(supabase, searchParams, ownerId) {
 
   // Build base query — exclude transcript/summary/transcript_status from list responses;
   // those fields are only needed when a single note is opened (getNote fetches * for that).
+  const sort = searchParams.get('sort') || '';
   let query = supabase.from('notes').select(
-    'id, owner_id, title, content, created_at, updated_at, ai_action_items, note_tags(tag_id, tags(*))',
+    'id, owner_id, title, content, created_at, updated_at, ai_action_items, position, note_tags(tag_id, tags(*))',
     { count: 'exact' }
-  ).eq('owner_id', ownerId).order('created_at', { ascending: false });
+  ).eq('owner_id', ownerId);
+  if (sort === 'position') {
+    query = query.order('position', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false });
+  } else {
+    query = query.order('created_at', { ascending: false });
+  }
 
   // Sidebar tag filter: show only notes with these source tags (pre-pagination for correct count)
   if (tagId) {
@@ -742,6 +748,18 @@ async function reorderTodo(supabase, body) {
   return NextResponse.json({ ...todo, tags });
 }
 
+async function batchReorderNotes(supabase, body) {
+  const { orderedIds } = body;
+  if (!orderedIds || !Array.isArray(orderedIds)) {
+    return NextResponse.json({ error: 'orderedIds required' }, { status: 400 });
+  }
+  const ts = now();
+  for (let i = 0; i < orderedIds.length; i++) {
+    await supabase.from('notes').update({ position: i, updated_at: ts }).eq('id', orderedIds[i]);
+  }
+  return NextResponse.json({ success: true });
+}
+
 async function batchReorderTodos(supabase, body) {
   const { orderedIds } = body;
   if (!orderedIds || !Array.isArray(orderedIds)) {
@@ -922,6 +940,7 @@ export async function POST(request, { params }) {
     if (path[0] === 'notes') return createNote(supabase, body, user.id);
     if (path[0] === 'todos' && path[1] === 'reorder') return reorderTodo(supabase, body);
     if (path[0] === 'todos' && path[1] === 'batch-reorder') return batchReorderTodos(supabase, body);
+    if (path[0] === 'notes' && path[1] === 'batch-reorder') return batchReorderNotes(supabase, body);
     if (path[0] === 'todos') return createTodo(supabase, body, user.id);
     if (path[0] === 'tags' && path[1] === 'batch-reorder') return batchReorderTags(supabase, body);
     if (path[0] === 'tags') return createTag(supabase, body, user.id);
