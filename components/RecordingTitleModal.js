@@ -30,7 +30,7 @@ export default function RecordingTitleModal({ isOpen, mode, onClose, onConfirm }
 
     if (!isOpen) return null;
 
-    const label = mode === 'tab' ? 'Mic + Meeting Audio' : 'Mic Only';
+    const modeLabel = mode === 'tab' ? 'Mic + Meeting Audio' : 'Mic Only';
     const shortcut = mode === 'tab' ? '⌥M' : '⌥R';
 
     return (
@@ -43,9 +43,7 @@ export default function RecordingTitleModal({ isOpen, mode, onClose, onConfirm }
                 {/* Header */}
                 <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-muted/30">
                     <Mic size={14} className="text-primary" />
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        New Recording — {label}
-                    </span>
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">New Meeting Note</span>
                     <div className="flex-1" />
                     <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-mono">{shortcut}</span>
                     <button onClick={onClose} className="p-0.5 hover:bg-muted rounded transition-colors text-muted-foreground hover:text-foreground">
@@ -54,7 +52,7 @@ export default function RecordingTitleModal({ isOpen, mode, onClose, onConfirm }
                 </div>
 
                 {/* Input */}
-                <div className="px-4 pt-3 pb-4">
+                <div className="px-4 pt-3 pb-2">
                     <input
                         ref={inputRef}
                         type="text"
@@ -67,6 +65,7 @@ export default function RecordingTitleModal({ isOpen, mode, onClose, onConfirm }
                         className="w-full text-lg font-medium bg-transparent border-none outline-none placeholder:text-muted-foreground/40"
                         autoComplete="off"
                     />
+                    <p className="text-[11px] text-muted-foreground/50 mt-1">{modeLabel}</p>
                 </div>
 
                 {/* Footer */}
@@ -83,7 +82,7 @@ export default function RecordingTitleModal({ isOpen, mode, onClose, onConfirm }
                         className="text-xs px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                     >
                         <Mic size={11} />
-                        Start Recording
+                        Create Note
                     </button>
                 </div>
             </div>

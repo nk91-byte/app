@@ -558,6 +558,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [dbReady, setDbReady] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
+  const editingNoteRef = useRef(null);
   const [pendingRecordMode, setPendingRecordMode] = useState(null); // null | 'mic' | 'tab'
   const [recordingModalMode, setRecordingModalMode] = useState(null); // null | 'mic' | 'tab'
   const [editorToolbarOpen, setEditorToolbarOpen] = useState(false);
@@ -1060,6 +1061,9 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedNoteId, tagDropdownNoteId]);
 
+  // Keep ref in sync so the hotkey handler always reads the latest editingNote
+  useEffect(() => { editingNoteRef.current = editingNote; }, [editingNote]);
+
   // ⌥R = toggle mic-only recording, ⌥M = toggle mic + meeting audio.
   // If a note is open, toggles recording on it. Otherwise opens a title modal,
   // creates a new note, and starts recording on it.
@@ -1070,7 +1074,7 @@ export default function App() {
       if (code !== 'KeyR' && code !== 'KeyM') return;
       e.preventDefault();
       const withTab = code === 'KeyM';
-      if (editingNote?.id) {
+      if (editingNoteRef.current?.id) {
         window.dispatchEvent(new CustomEvent('noteflow:record:toggle', { detail: { withTab } }));
         return;
       }
@@ -1078,7 +1082,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [editingNote?.id]);
+  }, []);
 
   const handleRecordingModalConfirm = async (title) => {
     const withTab = recordingModalMode === 'tab';
