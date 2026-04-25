@@ -30,6 +30,7 @@ import TagsManagement from '@/components/TagsManagement';
 import SettingsPanel from '@/components/SettingsPanel';
 import QuickAddModal from '@/components/QuickAddModal';
 import RecordingControls from '@/components/RecordingControls';
+import RecordingTitleModal from '@/components/RecordingTitleModal';
 import TranscriptViewer from '@/components/TranscriptViewer';
 import { cleanupOldAudio } from '@/lib/audioStore';
 import { toast } from 'sonner';
@@ -558,6 +559,7 @@ export default function App() {
   const [dbReady, setDbReady] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
   const [pendingRecordMode, setPendingRecordMode] = useState(null); // null | 'mic' | 'tab'
+  const [recordingModalMode, setRecordingModalMode] = useState(null); // null | 'mic' | 'tab'
   const [editorToolbarOpen, setEditorToolbarOpen] = useState(false);
   const [showActionItems, setShowActionItems] = useState(false);
   const [inlineAddingGroupId, setInlineAddingGroupId] = useState(null);
@@ -1059,10 +1061,10 @@ export default function App() {
   }, [selectedNoteId, tagDropdownNoteId]);
 
   // ⌘⌥R = toggle mic-only recording, ⌘⌥M = toggle mic + meeting audio.
-  // If a note is open, toggles recording on it. Otherwise prompts for a title,
+  // If a note is open, toggles recording on it. Otherwise opens a title modal,
   // creates a new note, and starts recording on it.
   useEffect(() => {
-    const handler = async (e) => {
+    const handler = (e) => {
       if (!e.metaKey || !e.altKey) return;
       const code = e.code;
       if (code !== 'KeyR' && code !== 'KeyM') return;
@@ -1072,26 +1074,30 @@ export default function App() {
         window.dispatchEvent(new CustomEvent('noteflow:record:toggle', { detail: { withTab } }));
         return;
       }
-      const title = window.prompt('Meeting title?');
-      if (!title || !title.trim()) return;
-      try {
-        const note = await api('notes', {
-          method: 'POST',
-          body: JSON.stringify({ title: title.trim(), content: { type: 'doc', content: [{ type: 'paragraph' }] } }),
-        });
-        setNotes(prev => [{ ...note, tags: [] }, ...prev]);
-        setView('notebook');
-        setSelectedNoteId(note.id);
-        setNoteTab('notes');
-        setEditingNote({ ...note, tags: [] });
-        setPendingRecordMode(withTab ? 'tab' : 'mic');
-      } catch (err) {
-        console.error('Hotkey create-note failed:', err);
-      }
+      setRecordingModalMode(withTab ? 'tab' : 'mic');
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [editingNote?.id]);
+
+  const handleRecordingModalConfirm = async (title) => {
+    const withTab = recordingModalMode === 'tab';
+    setRecordingModalMode(null);
+    try {
+      const note = await api('notes', {
+        method: 'POST',
+        body: JSON.stringify({ title, content: { type: 'doc', content: [{ type: 'paragraph' }] } }),
+      });
+      setNotes(prev => [{ ...note, tags: [] }, ...prev]);
+      setView('notebook');
+      setSelectedNoteId(note.id);
+      setNoteTab('notes');
+      setEditingNote({ ...note, tags: [] });
+      setPendingRecordMode(withTab ? 'tab' : 'mic');
+    } catch (err) {
+      console.error('Hotkey create-note failed:', err);
+    }
+  };
 
   // Once a freshly created note is mounted, fire the record-toggle event.
   useEffect(() => {
@@ -2943,6 +2949,12 @@ export default function App() {
         projectTags={projectTags}
         NoteEditor={NoteEditor}
         createProjectTag={createProjectTag}
+      />
+      <RecordingTitleModal
+        isOpen={!!recordingModalMode}
+        mode={recordingModalMode}
+        onClose={() => setRecordingModalMode(null)}
+        onConfirm={handleRecordingModalConfirm}
       />
       {/* Generate/Regenerate preset dropdown — rendered at root to escape overflow/stacking contexts */}
       {generateDropdownPos && (
