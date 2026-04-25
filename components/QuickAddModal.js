@@ -105,7 +105,7 @@ export default function QuickAddModal({
                     <Zap size={14} className="text-primary" />
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quick Add Action</span>
                     <div className="flex-1" />
-                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-mono">⌘K</span>
+                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-mono">⌥K</span>
                     <button onClick={onClose} className="p-0.5 hover:bg-muted rounded transition-colors text-muted-foreground hover:text-foreground">
                         <X size={14} />
                     </button>

@@ -1039,7 +1039,7 @@ export default function App() {
   // ESC key to close editor panel
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if (e.altKey && e.code === 'KeyK') {
         e.preventDefault();
         setQuickAddOpen(prev => !prev);
         return;
@@ -1060,12 +1060,12 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedNoteId, tagDropdownNoteId]);
 
-  // ⌘⌥R = toggle mic-only recording, ⌘⌥M = toggle mic + meeting audio.
+  // ⌥R = toggle mic-only recording, ⌥M = toggle mic + meeting audio.
   // If a note is open, toggles recording on it. Otherwise opens a title modal,
   // creates a new note, and starts recording on it.
   useEffect(() => {
     const handler = (e) => {
-      if (!e.metaKey || !e.altKey) return;
+      if (!e.altKey || e.metaKey || e.ctrlKey) return;
       const code = e.code;
       if (code !== 'KeyR' && code !== 'KeyM') return;
       e.preventDefault();

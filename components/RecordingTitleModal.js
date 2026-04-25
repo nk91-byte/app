@@ -31,7 +31,7 @@ export default function RecordingTitleModal({ isOpen, mode, onClose, onConfirm }
     if (!isOpen) return null;
 
     const label = mode === 'tab' ? 'Mic + Meeting Audio' : 'Mic Only';
-    const shortcut = mode === 'tab' ? '⌘⌥M' : '⌘⌥R';
+    const shortcut = mode === 'tab' ? '⌥M' : '⌥R';
 
     return (
         <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh]" onClick={onClose}>
