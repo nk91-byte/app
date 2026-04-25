@@ -2006,10 +2006,6 @@ export default function App() {
             onDeleteNotebookView={deleteNotebookView}
             onDeleteTodoView={deleteTodoView}
             onLogout={handleLogout}
-            defaultTodoGroupBy={defaultTodoGroupBy}
-            persistDefaultTodoGroupBy={persistDefaultTodoGroupBy}
-            defaultNoteGroupBy={defaultNoteGroupBy}
-            persistDefaultNoteGroupBy={persistDefaultNoteGroupBy}
           />
 
           {/* ===== MAIN CONTENT ===== */}
@@ -2079,6 +2075,10 @@ export default function App() {
                   summaryPresets={summaryPresets}
                   defaultPresetId={defaultPresetId}
                   onSavePresets={saveSummaryPresets}
+                  defaultTodoGroupBy={defaultTodoGroupBy}
+                  persistDefaultTodoGroupBy={persistDefaultTodoGroupBy}
+                  defaultNoteGroupBy={defaultNoteGroupBy}
+                  persistDefaultNoteGroupBy={persistDefaultNoteGroupBy}
                 />
               ) : view === 'tags' ? (
                 /* ===== TAGS MANAGEMENT VIEW ===== */

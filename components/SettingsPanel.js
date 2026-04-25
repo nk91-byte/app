@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Plus, Trash2, Star, ChevronDown, ChevronRight, Check, X } from 'lucide-react';
 
-export default function SettingsPanel({ summaryPresets, defaultPresetId, onSavePresets }) {
+export default function SettingsPanel({ summaryPresets, defaultPresetId, onSavePresets, defaultTodoGroupBy, persistDefaultTodoGroupBy, defaultNoteGroupBy, persistDefaultNoteGroupBy }) {
   const [presets, setPresets] = useState(summaryPresets);
   const [defaultId, setDefaultId] = useState(defaultPresetId);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -67,7 +67,46 @@ export default function SettingsPanel({ summaryPresets, defaultPresetId, onSaveP
         <p className="text-xs text-muted-foreground mt-0.5">Summary Instructions</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-6 space-y-8">
+
+        {/* Default Grouping */}
+        {persistDefaultTodoGroupBy && (
+          <div className="max-w-2xl">
+            <h3 className="text-xs font-semibold mb-1">Default Grouping</h3>
+            <p className="text-xs text-muted-foreground mb-3">
+              Grouping applied when opening a view without a saved view active.
+            </p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-4">
+                <span className="text-xs text-muted-foreground w-20">To-Do List</span>
+                <select
+                  value={defaultTodoGroupBy || 'project'}
+                  onChange={e => persistDefaultTodoGroupBy(e.target.value)}
+                  className="text-xs h-7 pl-2 pr-6 rounded-md border bg-background appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  <option value="project">By Project</option>
+                  <option value="status">By Status</option>
+                  <option value="date">By Date</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-xs text-muted-foreground w-20">Notebook</span>
+                <select
+                  value={defaultNoteGroupBy || 'meeting'}
+                  onChange={e => persistDefaultNoteGroupBy(e.target.value)}
+                  className="text-xs h-7 pl-2 pr-6 rounded-md border bg-background appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  <option value="meeting">By Meeting</option>
+                  <option value="date">By Date</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Summary Instructions */}
+        <div className="max-w-2xl">
+        <h3 className="text-xs font-semibold mb-1">Summary Instructions</h3>
         <p className="text-xs text-muted-foreground mb-4">
           Named presets that guide AI summary generation. When generating a summary, choose a preset from the dropdown. A starred preset is the default.
         </p>
@@ -211,6 +250,7 @@ export default function SettingsPanel({ summaryPresets, defaultPresetId, onSaveP
             </button>
           )}
         </div>
+        </div> {/* end Summary Instructions */}
       </div>
     </div>
   );

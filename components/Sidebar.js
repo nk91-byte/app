@@ -31,10 +31,6 @@ export default function Sidebar({
     onDeleteNotebookView,
     onDeleteTodoView,
     onLogout,
-    defaultTodoGroupBy,
-    persistDefaultTodoGroupBy,
-    defaultNoteGroupBy,
-    persistDefaultNoteGroupBy,
 }) {
     return (
         <div className={`${sidebarCollapsed ? 'w-[48px]' : 'w-60'} border-r bg-sidebar flex flex-col transition-all duration-300 ease-in-out flex-shrink-0 h-screen sticky top-0`}>
@@ -206,36 +202,6 @@ export default function Sidebar({
                         onUpdateView={onUpdateTodoView}
                         onDeleteView={onDeleteTodoView}
                     />
-                </div>
-            )}
-
-            {/* Default Grouping Settings */}
-            {!sidebarCollapsed && persistDefaultTodoGroupBy && (
-                <div className="border-t px-3 py-2 space-y-1.5">
-                    <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wide">Defaults</p>
-                    <div className="flex items-center justify-between gap-2">
-                        <span className="text-[11px] text-muted-foreground">To-Do</span>
-                        <select
-                            value={defaultTodoGroupBy || 'project'}
-                            onChange={e => persistDefaultTodoGroupBy(e.target.value)}
-                            className="text-[11px] h-6 pl-1.5 pr-5 rounded border bg-background appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring"
-                        >
-                            <option value="project">By Project</option>
-                            <option value="status">By Status</option>
-                            <option value="date">By Date</option>
-                        </select>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                        <span className="text-[11px] text-muted-foreground">Notebook</span>
-                        <select
-                            value={defaultNoteGroupBy || 'meeting'}
-                            onChange={e => persistDefaultNoteGroupBy(e.target.value)}
-                            className="text-[11px] h-6 pl-1.5 pr-5 rounded border bg-background appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring"
-                        >
-                            <option value="meeting">By Meeting</option>
-                            <option value="date">By Date</option>
-                        </select>
-                    </div>
                 </div>
             )}
 
