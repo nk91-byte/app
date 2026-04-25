@@ -549,11 +549,13 @@ export default function App() {
   const [todoCreatedFilter, setTodoCreatedFilter] = useState([]);
   const [todoCreatedRangeFrom, setTodoCreatedRangeFrom] = useState('');
   const [todoCreatedRangeTo, setTodoCreatedRangeTo] = useState('');
-  const [todoGroupBy, setTodoGroupBy] = useState('none');
+  const [todoGroupBy, setTodoGroupBy] = useState('project');
+  const [defaultTodoGroupBy, setDefaultTodoGroupBy] = useState('project');
   const [noteMeetingFilters, setNoteMeetingFilters] = useState([]);
   const [noteStatusFilters, setNoteStatusFilters] = useState([]);
   const [noteDateFilter, setNoteDateFilter] = useState('all');
-  const [noteGroupBy, setNoteGroupBy] = useState('none');
+  const [noteGroupBy, setNoteGroupBy] = useState('meeting');
+  const [defaultNoteGroupBy, setDefaultNoteGroupBy] = useState('meeting');
   const [viewLayout, setViewLayout] = useState('list');
   const [loading, setLoading] = useState(true);
   const [dbReady, setDbReady] = useState(false);
@@ -703,7 +705,7 @@ export default function App() {
     if (!v) return;
     setActiveNotebookViewId(viewId);
     setViewLayout(v.viewLayout || 'list');
-    setNoteGroupBy(v.noteGroupBy || 'none');
+    setNoteGroupBy(v.noteGroupBy || defaultNoteGroupBy || 'meeting');
     setNoteDateFilter(v.noteDateFilter || 'all');
     setNoteMeetingFilters(v.hiddenMeetingTagIds || []);
     setNoteStatusFilters(v.noteStatusFilters || []);
@@ -773,7 +775,7 @@ export default function App() {
     if (!v) return;
     setActiveTodoViewId(viewId);
     setViewLayout(v.viewLayout || 'list');
-    setTodoGroupBy(v.todoGroupBy || 'none');
+    setTodoGroupBy(v.todoGroupBy || defaultTodoGroupBy || 'project');
     setTodoFilters(v.todoFilters || ['open']);
     setTodoProjectFilterIds(v.hiddenProjectTagIds || []);
     setTodoDateFilter(Array.isArray(v.todoDateFilter) ? v.todoDateFilter : []);
@@ -875,6 +877,32 @@ export default function App() {
       setSummaryPresets(prefs.summary_instructions.presets || []);
       setDefaultPresetId(prefs.summary_instructions.default_id || null);
     }
+    if (prefs.default_todo_groupby) {
+      setDefaultTodoGroupBy(prefs.default_todo_groupby);
+      setTodoGroupBy(prefs.default_todo_groupby);
+    }
+    if (prefs.default_note_groupby) {
+      setDefaultNoteGroupBy(prefs.default_note_groupby);
+      setNoteGroupBy(prefs.default_note_groupby);
+    }
+  };
+
+  const persistDefaultTodoGroupBy = async (value) => {
+    setDefaultTodoGroupBy(value);
+    setTodoGroupBy(value);
+    try {
+      await api('preferences', { method: 'POST', body: JSON.stringify({ key: 'default_todo_groupby', value }) });
+      try { localStorage.removeItem('noteflow_prefs_cache'); } catch {}
+    } catch (e) { console.error('Persist default todo groupby error:', e); }
+  };
+
+  const persistDefaultNoteGroupBy = async (value) => {
+    setDefaultNoteGroupBy(value);
+    setNoteGroupBy(value);
+    try {
+      await api('preferences', { method: 'POST', body: JSON.stringify({ key: 'default_note_groupby', value }) });
+      try { localStorage.removeItem('noteflow_prefs_cache'); } catch {}
+    } catch (e) { console.error('Persist default note groupby error:', e); }
   };
 
   const loadPreferences = useCallback(async () => {
@@ -916,7 +944,6 @@ export default function App() {
       if (noteStatusFilters.length > 0) params.set('status', noteStatusFilters.join(','));
       params.set('limit', LIMIT);
       params.set('offset', forceOffset != null ? forceOffset : noteOffset);
-      params.set('sort', 'position');
 
       const response = await api(`notes?${params}`);
 
@@ -986,7 +1013,12 @@ export default function App() {
 
       params.set('limit', 10000);
       params.set('offset', 0);
-      params.set('sort', 'position');
+      if (todoGroupBy === 'status') {
+        params.set('sort', 'position_status');
+      } else if (todoGroupBy === 'project') {
+        params.set('sort', 'position_project');
+      }
+      // date grouping: no position sort, server returns by created_at
 
       const response = await api(`todos?${params}`);
 
@@ -997,7 +1029,7 @@ export default function App() {
       }
       setTodoTotal(response.total);
     } catch (e) { console.error('Load todos error:', e); }
-  }, [api, searchQuery, todoFilters, todoProjectFilterIds, todoDateFilter, todoDateRangeFrom, todoDateRangeTo, todoCreatedFilter, todoCreatedRangeFrom, todoCreatedRangeTo, todoOffset]);
+  }, [api, searchQuery, todoFilters, todoProjectFilterIds, todoDateFilter, todoDateRangeFrom, todoDateRangeTo, todoCreatedFilter, todoCreatedRangeFrom, todoCreatedRangeTo, todoOffset, todoGroupBy]);
 
   const loadSourceTags = useCallback(async () => {
     try {
@@ -1023,7 +1055,7 @@ export default function App() {
         loadTodos(false, 0);
       }
     }
-  }, [view, searchQuery, selectedTagIds, todoFilters, todoProjectFilterIds, todoDateFilter, todoDateRangeFrom, todoDateRangeTo, todoCreatedFilter, todoCreatedRangeFrom, todoCreatedRangeTo, noteMeetingFilters, noteStatusFilters, dbReady]);
+  }, [view, searchQuery, selectedTagIds, todoFilters, todoProjectFilterIds, todoDateFilter, todoDateRangeFrom, todoDateRangeTo, todoCreatedFilter, todoCreatedRangeFrom, todoCreatedRangeTo, noteMeetingFilters, noteStatusFilters, dbReady, todoGroupBy]);
 
   const loadMoreNotes = useCallback(() => {
     const nextOffset = noteOffset + LIMIT;
@@ -1620,44 +1652,6 @@ export default function App() {
     }
   };
 
-  // ===== REORDER NOTES WITHIN A GROUP =====
-  const reorderNotesInGroup = async (activeId, overId) => {
-    const activeIdx = notes.findIndex(n => n.id === activeId);
-    const overIdx = notes.findIndex(n => n.id === overId);
-    if (activeIdx === -1 || overIdx === -1) return;
-
-    // Slots occupied by the active note's group peers, in global order
-    const activeNote = notes[activeIdx];
-    const activeMeetingTagId = activeNote.tags?.find(t => t.type === 'source')?.id || '__untagged';
-    const groupGlobalIndices = notes
-      .map((n, i) => {
-        const tagId = n.tags?.find(t => t.type === 'source')?.id || '__untagged';
-        return tagId === activeMeetingTagId ? i : -1;
-      })
-      .filter(i => i !== -1);
-
-    const oldSlot = groupGlobalIndices.indexOf(activeIdx);
-    const newSlot = groupGlobalIndices.indexOf(overIdx);
-    if (oldSlot === -1 || newSlot === -1) return;
-
-    const reorderedSlots = [...groupGlobalIndices];
-    const [moved] = reorderedSlots.splice(oldSlot, 1);
-    reorderedSlots.splice(newSlot, 0, moved);
-
-    const newNotes = [...notes];
-    for (let i = 0; i < groupGlobalIndices.length; i++) {
-      newNotes[groupGlobalIndices[i]] = notes[reorderedSlots[i]];
-    }
-    setNotes(newNotes.map((n, idx) => ({ ...n, position: idx })));
-
-    try {
-      await api('notes/batch-reorder', {
-        method: 'POST',
-        body: JSON.stringify({ orderedIds: newNotes.map(n => n.id) }),
-      });
-    } catch (e) { console.error('Note reorder error:', e); loadNotes(); }
-  };
-
   // ===== DRAG & DROP =====
   const handleDragStart = (event) => {
     const { active } = event;
@@ -1737,14 +1731,15 @@ export default function App() {
       }
 
       const allOrderedIds = newTodos.map(t => t.id);
+      const posField = todoGroupBy === 'status' ? 'position_status' : 'position_project';
 
       // Optimistically update positions and UI flat list
-      setTodos(newTodos.map((t, idx) => ({ ...t, position: idx })));
+      setTodos(newTodos.map((t, idx) => ({ ...t, [posField]: idx })));
 
       try {
         await api('todos/batch-reorder', {
           method: 'POST',
-          body: JSON.stringify({ orderedIds: allOrderedIds }),
+          body: JSON.stringify({ orderedIds: allOrderedIds, type: todoGroupBy === 'status' ? 'status' : 'project' }),
         });
       } catch (e) { console.error('Reorder error:', e); loadTodos(); }
 
@@ -1777,7 +1772,7 @@ export default function App() {
           const map = {};
           prev.forEach(t => map[t.id] = t);
           map[active.id] = { ...map[active.id], tags: newTags };
-          return flatIds.map((id, index) => ({ ...map[id], position: index }));
+          return flatIds.map((id, index) => ({ ...map[id], position_project: index }));
         });
 
         try {
@@ -1787,7 +1782,7 @@ export default function App() {
           });
           await api('todos/batch-reorder', {
             method: 'POST',
-            body: JSON.stringify({ orderedIds: flatIds }),
+            body: JSON.stringify({ orderedIds: flatIds, type: 'project' }),
           });
           loadTodos();
         } catch (e) { console.error('Reorder error:', e); loadTodos(); }
@@ -1816,7 +1811,7 @@ export default function App() {
           const map = {};
           prev.forEach(t => map[t.id] = t);
           map[active.id] = { ...map[active.id], ...statusPatch };
-          return flatIds.map((id, index) => ({ ...map[id], position: index }));
+          return flatIds.map((id, index) => ({ ...map[id], position_status: index }));
         });
 
         try {
@@ -1830,7 +1825,7 @@ export default function App() {
           } else if (destStatus === 'archived' && !activeTodo.archived_at) {
             await api(`todos/${active.id}/archive`, { method: 'PATCH', body: '{}' });
           }
-          await api('todos/batch-reorder', { method: 'POST', body: JSON.stringify({ orderedIds: flatIds }) });
+          await api('todos/batch-reorder', { method: 'POST', body: JSON.stringify({ orderedIds: flatIds, type: 'status' }) });
           loadTodos();
         } catch (e) { console.error('Status group drag error:', e); loadTodos(); }
 
@@ -1848,7 +1843,7 @@ export default function App() {
           const map = {};
           prev.forEach(t => map[t.id] = t);
           map[active.id] = { ...map[active.id], due_date: newDueDate };
-          return flatIds.map((id, index) => ({ ...map[id], position: index }));
+          return flatIds.map((id) => map[id]);
         });
 
         try {
@@ -1856,7 +1851,6 @@ export default function App() {
             method: 'PUT',
             body: JSON.stringify({ due_date: newDueDate }),
           });
-          await api('todos/batch-reorder', { method: 'POST', body: JSON.stringify({ orderedIds: flatIds }) });
           loadTodos();
         } catch (e) { console.error('Date group drag error:', e); loadTodos(); }
       }
@@ -2012,6 +2006,10 @@ export default function App() {
             onDeleteNotebookView={deleteNotebookView}
             onDeleteTodoView={deleteTodoView}
             onLogout={handleLogout}
+            defaultTodoGroupBy={defaultTodoGroupBy}
+            persistDefaultTodoGroupBy={persistDefaultTodoGroupBy}
+            defaultNoteGroupBy={defaultNoteGroupBy}
+            persistDefaultNoteGroupBy={persistDefaultNoteGroupBy}
           />
 
           {/* ===== MAIN CONTENT ===== */}
@@ -2162,7 +2160,6 @@ export default function App() {
                         noteGroupOrder={noteGroupOrder}
                         boardColumnSize={boardColumnSize}
                         setNoteMeetingFilters={setNoteMeetingFilters}
-                        reorderNotesInGroup={reorderNotesInGroup}
                       />
                     ) : (
                       /* ===== TODO VIEW ===== */

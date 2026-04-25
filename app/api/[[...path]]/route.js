@@ -169,16 +169,10 @@ async function getNotes(supabase, searchParams, ownerId) {
 
   // Build base query — exclude transcript/summary/transcript_status from list responses;
   // those fields are only needed when a single note is opened (getNote fetches * for that).
-  const sort = searchParams.get('sort') || '';
   let query = supabase.from('notes').select(
-    'id, owner_id, title, content, created_at, updated_at, ai_action_items, position, note_tags(tag_id, tags(*))',
+    'id, owner_id, title, content, created_at, updated_at, ai_action_items, note_tags(tag_id, tags(*))',
     { count: 'exact' }
-  ).eq('owner_id', ownerId);
-  if (sort === 'position') {
-    query = query.order('position', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false });
-  } else {
-    query = query.order('created_at', { ascending: false });
-  }
+  ).eq('owner_id', ownerId).order('created_at', { ascending: false });
 
   // Sidebar tag filter: show only notes with these source tags (pre-pagination for correct count)
   if (tagId) {
@@ -373,7 +367,7 @@ async function updateNote(supabase, id, body, ownerId) {
         await supabase.from('todos').insert({
           id: newId, owner_id: ownerId, note_id: id, parent_todo_id: parentTodoId,
           text: item.text, is_done: item.checked, done_at: item.checked ? now() : null,
-          position: i, due_date: item.dueDate, created_at: now(), updated_at: now()
+          position_project: i, due_date: item.dueDate, created_at: now(), updated_at: now()
         });
 
         if (item.projectTagId) {
@@ -518,10 +512,12 @@ async function getTodos(supabase, searchParams, ownerId) {
     }
   }
 
-  if (sort === 'position') {
-    query = query.order('position', { ascending: true }).order('created_at', { ascending: false });
+  if (sort === 'position_project') {
+    query = query.order('position_project', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false });
+  } else if (sort === 'position_status') {
+    query = query.order('position_status', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false });
   } else {
-    query = query.order('created_at', { ascending: false }).order('position', { ascending: true });
+    query = query.order('created_at', { ascending: false });
   }
 
   query = query.range(offset, offset + limit - 1);
@@ -540,13 +536,13 @@ async function getTodos(supabase, searchParams, ownerId) {
 }
 
 async function createTodo(supabase, body, ownerId) {
-  const { text, content, note_id, parent_todo_id, position, tag_ids, due_date, skip_content_update, is_done, archived_at } = body;
+  const { text, content, note_id, parent_todo_id, position_project, tag_ids, due_date, skip_content_update, is_done, archived_at } = body;
   const id = uuidv4();
   const timestamp = now();
 
   const insertData = {
     id, owner_id: ownerId, note_id: note_id || null, parent_todo_id: parent_todo_id || null,
-    text: text || '', content: content || null, position: position || null,
+    text: text || '', content: content || null, position_project: position_project || null,
     due_date: due_date || null, created_at: timestamp, updated_at: timestamp,
     skip_content_update: skip_content_update || false,
     ...(is_done ? { is_done: true, done_at: timestamp } : {}),
@@ -614,7 +610,8 @@ async function updateTodo(supabase, id, body) {
           id: newTodoId, owner_id: existing.owner_id, note_id: existing.note_id,
           parent_todo_id: existing.parent_todo_id, text: newText, content: newContent,
           is_done: false, done_at: null, due_date: nextDueDate, recurrence: newRecurrence,
-          position: existing.position, created_at: now(), updated_at: now()
+          position_project: existing.position_project, position_status: existing.position_status,
+          created_at: now(), updated_at: now()
         });
 
         // Copy tags
@@ -688,7 +685,8 @@ async function toggleTodo(supabase, id, body) {
             id: newTodoId, owner_id: existing.owner_id, note_id: existing.note_id,
             parent_todo_id: existing.parent_todo_id, text: existing.text, content: existing.content,
             is_done: false, done_at: null, due_date: nextDueDate, recurrence: existing.recurrence,
-            position: existing.position, created_at: now(), updated_at: now()
+            position_project: existing.position_project, position_status: existing.position_status,
+            created_at: now(), updated_at: now()
           });
 
           const { data: existingTags } = await supabase.from('todo_tags').select('tag_id').eq('todo_id', id);
@@ -726,12 +724,13 @@ async function archiveTodo(supabase, id) {
 }
 
 async function reorderTodo(supabase, body) {
-  const { todoId, newPosition, oldProjectTagId, newProjectTagId } = body;
+  const { todoId, newPosition, positionType, oldProjectTagId, newProjectTagId } = body;
 
   const { data: existing } = await supabase.from('todos').select('*').eq('id', todoId).single();
   if (!existing) return NextResponse.json({ error: 'Todo not found' }, { status: 404 });
 
-  await supabase.from('todos').update({ position: newPosition, updated_at: now() }).eq('id', todoId);
+  const posField = positionType === 'status' ? 'position_status' : 'position_project';
+  await supabase.from('todos').update({ [posField]: newPosition, updated_at: now() }).eq('id', todoId);
 
   if (oldProjectTagId !== newProjectTagId) {
     if (oldProjectTagId) {
@@ -748,26 +747,16 @@ async function reorderTodo(supabase, body) {
   return NextResponse.json({ ...todo, tags });
 }
 
-async function batchReorderNotes(supabase, body) {
-  const { orderedIds } = body;
-  if (!orderedIds || !Array.isArray(orderedIds)) {
-    return NextResponse.json({ error: 'orderedIds required' }, { status: 400 });
-  }
-  const ts = now();
-  for (let i = 0; i < orderedIds.length; i++) {
-    await supabase.from('notes').update({ position: i, updated_at: ts }).eq('id', orderedIds[i]);
-  }
-  return NextResponse.json({ success: true });
-}
 
 async function batchReorderTodos(supabase, body) {
-  const { orderedIds } = body;
+  const { orderedIds, type } = body;
   if (!orderedIds || !Array.isArray(orderedIds)) {
     return NextResponse.json({ error: 'orderedIds required' }, { status: 400 });
   }
+  const field = type === 'status' ? 'position_status' : 'position_project';
   const ts = now();
   for (let i = 0; i < orderedIds.length; i++) {
-    await supabase.from('todos').update({ position: i, updated_at: ts }).eq('id', orderedIds[i]);
+    await supabase.from('todos').update({ [field]: i, updated_at: ts }).eq('id', orderedIds[i]);
   }
   return NextResponse.json({ success: true });
 }
@@ -940,7 +929,6 @@ export async function POST(request, { params }) {
     if (path[0] === 'notes') return createNote(supabase, body, user.id);
     if (path[0] === 'todos' && path[1] === 'reorder') return reorderTodo(supabase, body);
     if (path[0] === 'todos' && path[1] === 'batch-reorder') return batchReorderTodos(supabase, body);
-    if (path[0] === 'notes' && path[1] === 'batch-reorder') return batchReorderNotes(supabase, body);
     if (path[0] === 'todos') return createTodo(supabase, body, user.id);
     if (path[0] === 'tags' && path[1] === 'batch-reorder') return batchReorderTags(supabase, body);
     if (path[0] === 'tags') return createTag(supabase, body, user.id);

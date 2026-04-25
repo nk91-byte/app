@@ -205,7 +205,6 @@ export default function TopNavBar({
                             onChange={e => setNoteGroupBy(e.target.value)}
                             className="h-7 pl-2 pr-6 rounded-md border text-xs bg-background appearance-none cursor-pointer hover:border-primary/50 focus:outline-none focus:ring-1 focus:ring-ring"
                         >
-                            <option value="none">No Grouping</option>
                             <option value="meeting">Group by Meeting</option>
                             <option value="date">Group by Date</option>
                         </select>
@@ -290,7 +289,7 @@ export default function TopNavBar({
                             </Popover>
                         ) : (
                             <button
-                                onClick={() => { setViewLayout('board'); if (noteGroupBy === 'none') setNoteGroupBy('meeting'); }}
+                                onClick={() => { setViewLayout('board'); }}
                                 className="p-1.5 transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50"
                                 title="Board view"
                             >
@@ -606,7 +605,6 @@ export default function TopNavBar({
                             onChange={e => setTodoGroupBy(e.target.value)}
                             className="h-7 pl-2 pr-6 rounded-md border text-xs bg-background appearance-none cursor-pointer hover:border-primary/50 focus:outline-none focus:ring-1 focus:ring-ring"
                         >
-                            <option value="none">No Grouping</option>
                             <option value="project">Group by Project</option>
                             <option value="status">Group by Status</option>
                             <option value="date">Group by Date</option>
@@ -693,7 +691,7 @@ export default function TopNavBar({
                             </Popover>
                         ) : (
                             <button
-                                onClick={() => { setViewLayout('board'); if (todoGroupBy === 'none') setTodoGroupBy('project'); }}
+                                onClick={() => { setViewLayout('board'); }}
                                 className="p-1.5 transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50"
                                 title="Board view"
                             >
@@ -712,7 +710,7 @@ export default function TopNavBar({
                         </button>
                     )}
 
-                    {todoGroupBy !== 'none' && (
+                    {true && (
                         <>
                             <div className="w-px h-5 bg-border mx-0.5" />
                             <button

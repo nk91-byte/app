@@ -1,4 +1,4 @@
-import { BookOpen, Plus, Clock, Check, CheckSquare, ChevronRight, GripVertical, EyeOff } from 'lucide-react';
+import { BookOpen, Plus, Clock, Check, CheckSquare, ChevronRight, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -38,30 +38,6 @@ function SortableBoardColumn({ id, className, header, children }) {
     );
 }
 
-function SortableNote({ id, children }) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.4 : 1,
-        position: 'relative',
-        zIndex: isDragging ? 50 : 'auto',
-    };
-    return (
-        <div ref={setNodeRef} style={style} className="group/sortable-note relative">
-            <div
-                {...attributes}
-                {...listeners}
-                className="absolute left-0 top-0 bottom-0 w-4 cursor-grab active:cursor-grabbing flex items-center justify-center opacity-0 group-hover/sortable-note:opacity-100 transition-opacity z-10"
-                style={{ left: '-16px' }}
-                onClick={e => e.stopPropagation()}
-            >
-                <GripVertical size={12} className="text-muted-foreground" />
-            </div>
-            {children}
-        </div>
-    );
-}
 
 export default function NotesBrowser({
     notes,
@@ -97,7 +73,6 @@ export default function NotesBrowser({
     boardColumnSize = 'medium',
     setNoteMeetingFilters,
     createNoteInGroup,
-    reorderNotesInGroup,
 }) {
     const columnWidthClass = boardColumnSize === 'small' ? 'w-52' : boardColumnSize === 'large' ? 'w-[400px]' : 'w-80';
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -387,7 +362,7 @@ export default function NotesBrowser({
                 }
 
                 // ===== LIST VIEW =====
-                const isSortable = noteGroupBy === 'meeting';
+                const isGroupSortable = noteGroupBy === 'meeting';
 
                 const NoteGroupHeader = ({ group, isCollapsed, onToggle }) => (
                     <div
@@ -415,8 +390,8 @@ export default function NotesBrowser({
                 const listContent = noteGroups.map(group => {
                     const isCollapsed = collapsedGroups?.includes(group.key);
                     const toggleCollapse = () => setCollapsedGroups?.(prev => prev.includes(group.key) ? prev.filter(k => k !== group.key) : [...prev, group.key]);
-                    const Wrapper = isSortable ? SortableNoteGroup : 'div';
-                    const wrapperProps = isSortable ? { id: group.key } : {};
+                    const Wrapper = isGroupSortable ? SortableNoteGroup : 'div';
+                    const wrapperProps = isGroupSortable ? { id: group.key } : {};
                     return (
                         <Wrapper key={group.key} {...wrapperProps}>
                             {group.label && (
@@ -426,10 +401,8 @@ export default function NotesBrowser({
                                 const noteItems = group.notes.map(note => {
                                         const isSelected = selectedNoteId === note.id;
                                         const noteTagColor = note.tags?.find(t => t.type === 'project')?.color || note.tags?.[0]?.color;
-                                        const NoteWrap = isSortable ? SortableNote : 'div';
-                                        const noteWrapProps = isSortable ? { id: note.id } : {};
                                         return (
-                                            <NoteWrap key={note.id} {...noteWrapProps}>
+                                            <div key={note.id}>
                                             <div
                                                 onClick={() => { setSelectedNoteId(note.id); setEditingNote(note); setTagDropdownNoteId(null); }}
                                                 className={`border rounded-lg transition-all cursor-pointer overflow-hidden ${isSelected ? 'ring-2 ring-primary/20 border-primary/30 bg-accent/30' : 'hover:border-primary/20 hover:bg-accent/10'}`}
@@ -545,21 +518,9 @@ export default function NotesBrowser({
                                                     </div>
                                                 </div>
                                             </div>
-                                            </NoteWrap>
+                                            </div>
                                         );
                                 });
-                                if (isSortable) {
-                                    return (
-                                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={e => {
-                                            const { active, over } = e;
-                                            if (over && active.id !== over.id) reorderNotesInGroup?.(active.id, over.id);
-                                        }}>
-                                            <SortableContext items={group.notes.map(n => n.id)} strategy={verticalListSortingStrategy}>
-                                                <div className="space-y-2 pl-4">{noteItems}</div>
-                                            </SortableContext>
-                                        </DndContext>
-                                    );
-                                }
                                 return <div className="space-y-2">{noteItems}</div>;
                             })()}
                             {!isCollapsed && createNoteInGroup && (
@@ -575,7 +536,7 @@ export default function NotesBrowser({
                     );
                 });
 
-                if (isSortable) {
+                if (isGroupSortable) {
                     return (
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleNoteGroupDragEnd}>
                             <SortableContext items={noteGroups.map(g => g.key)} strategy={verticalListSortingStrategy}>
