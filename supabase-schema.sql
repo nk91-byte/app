@@ -12,8 +12,7 @@ CREATE TABLE IF NOT EXISTS notes (
   title TEXT,
   content JSONB,
   created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now(),
-  position INTEGER
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS todos (
@@ -30,7 +29,8 @@ CREATE TABLE IF NOT EXISTS todos (
   recurrence JSONB,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
-  position INTEGER,
+  position_project INTEGER,
+  position_status INTEGER,
   skip_content_update BOOLEAN DEFAULT false
 );
 
@@ -60,7 +60,6 @@ CREATE TABLE IF NOT EXISTS todo_tags (
 
 CREATE INDEX IF NOT EXISTS idx_notes_owner_id ON notes(owner_id);
 CREATE INDEX IF NOT EXISTS idx_notes_created_at ON notes(created_at);
-CREATE INDEX IF NOT EXISTS idx_notes_position ON notes(owner_id, position);
 CREATE INDEX IF NOT EXISTS idx_todos_owner_id ON todos(owner_id);
 CREATE INDEX IF NOT EXISTS idx_todos_note_id ON todos(note_id);
 CREATE INDEX IF NOT EXISTS idx_todos_parent_todo_id ON todos(parent_todo_id);
@@ -75,6 +74,8 @@ CREATE INDEX IF NOT EXISTS idx_todo_tags_tag_id ON todo_tags(tag_id);
 
 -- Due date filtering and sorting on todos
 CREATE INDEX IF NOT EXISTS idx_todos_due_date ON todos(due_date);
+CREATE INDEX IF NOT EXISTS idx_todos_position_project ON todos(owner_id, position_project);
+CREATE INDEX IF NOT EXISTS idx_todos_position_status ON todos(owner_id, position_status);
 
 -- Status filtering: open todos = is_done false AND archived_at null (most common query)
 CREATE INDEX IF NOT EXISTS idx_todos_status ON todos(is_done, archived_at);

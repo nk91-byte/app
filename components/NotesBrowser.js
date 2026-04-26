@@ -526,9 +526,8 @@ export default function NotesBrowser({
                             {!isCollapsed && createNoteInGroup && (
                                 <button
                                     onClick={() => createNoteInGroup(group, noteGroupBy)}
-                                    className="flex items-center gap-2 py-1 px-3 text-xs text-muted-foreground hover:bg-muted/50 rounded-md transition-colors w-full text-left opacity-60 hover:opacity-100 focus-visible:opacity-100"
+                                    className="flex items-center gap-2 py-1 px-4 text-xs text-muted-foreground hover:bg-muted/50 rounded-md transition-colors w-full text-left opacity-60 hover:opacity-100 focus-visible:opacity-100"
                                 >
-                                    <div className="w-5" />
                                     <Plus size={14} /> New note
                                 </button>
                             )}
