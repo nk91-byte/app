@@ -19,7 +19,7 @@ function SortableBoardCard({ todo, children, editingTodoId, setEditingTodoId, se
             style={style}
             {...attributes}
             {...listeners}
-            className={`border rounded-lg bg-background hover:border-primary/20 hover:shadow-sm transition-all cursor-grab active:cursor-grabbing touch-none ${isDragging ? 'shadow-lg ring-1 ring-primary/20' : ''} ${isSelected ? 'bg-muted/60 ring-1 ring-inset ring-primary/30' : ''}`}
+            className={`border rounded-lg bg-nf-card hover:border-primary/20 hover:shadow-sm transition-all cursor-grab active:cursor-grabbing touch-none ${isDragging ? 'shadow-lg ring-1 ring-primary/20' : ''} ${isSelected ? 'bg-muted/60 ring-1 ring-inset ring-primary/30' : ''}`}
             onClick={() => { setEditingTodoId(todo.id); setEditingTodoText(todo.text); }}
         >
             {children}
@@ -115,7 +115,7 @@ export default function TodosBrowser({
             }
         }}>
             {todoTree.length === 0 && (
-                <div className="text-center py-16 text-muted-foreground">
+                <div className="text-center py-16 text-nf-ink-3">
                     <CheckSquare className="mx-auto mb-3" size={40} strokeWidth={1} />
                     <p className="text-lg font-medium">No todos found</p>
                     <p className="text-sm mt-1">Create a new todo or adjust your filters</p>
@@ -147,11 +147,11 @@ export default function TodosBrowser({
                                                                     <div className="flex items-center gap-1.5">
                                                                         <button
                                                                             onClick={(e) => { e.stopPropagation(); updateTodo(todo.id, { is_done: !todo.is_done }); }}
-                                                                            className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${todo.is_done ? 'bg-muted border-muted-foreground/20 text-muted-foreground/50' : 'border-muted-foreground/30 hover:border-primary'}`}
+                                                                            className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${todo.is_done ? 'bg-muted border-muted-foreground/20 text-nf-ink-3/50' : 'border-muted-foreground/30 hover:border-primary'}`}
                                                                         >
                                                                             {todo.is_done && <CheckSquare size={9} />}
                                                                         </button>
-                                                                        <span className={`text-xs flex-1 line-clamp-2 break-words leading-tight ${todo.is_done ? 'line-through text-muted-foreground' : ''}`}>{todo.text || 'Empty todo'}</span>
+                                                                        <span className={`text-xs flex-1 line-clamp-2 break-words leading-tight ${todo.is_done ? 'line-through text-nf-ink-3' : ''}`}>{todo.text || 'Empty todo'}</span>
                                                                     </div>
                                                                     {visibleFields?.includes('tags') && (() => {
                                                                         const displayTags = todo.tags;
@@ -179,7 +179,7 @@ export default function TodosBrowser({
                                                                                             setBoardTagDropdownPos({ top: rect.bottom + 4, left: rect.left });
                                                                                             setBoardTagPickerId(boardTagPickerId === todo.id ? null : todo.id);
                                                                                         }}
-                                                                                        className="text-[8px] px-1 py-0 rounded-full border border-dashed border-muted-foreground/30 text-muted-foreground hover:border-primary/50 transition-colors"
+                                                                                        className="text-[8px] px-1 py-0 rounded-full border border-dashed border-muted-foreground/30 text-nf-ink-3 hover:border-primary/50 transition-colors"
                                                                                     >
                                                                                         No tag
                                                                                     </button>
@@ -224,7 +224,7 @@ export default function TodosBrowser({
                                                                                                     );
                                                                                                 })}
                                                                                                 {projectTags.length === 0 && (
-                                                                                                    <div className="px-3 py-1.5 text-xs text-muted-foreground italic">No project tags yet</div>
+                                                                                                    <div className="px-3 py-1.5 text-xs text-nf-ink-3 italic">No project tags yet</div>
                                                                                                 )}
                                                                                             </div>
                                                                                         </div>
@@ -243,7 +243,7 @@ export default function TodosBrowser({
                                                                                 const total = actionItems.length;
                                                                                 const done = actionItems.filter(t => t.isChecked).length;
                                                                                 return (
-                                                                                    <div className="flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-medium bg-muted/60 text-muted-foreground">
+                                                                                    <div className="flex items-center gap-0.5 px-1 py-0 rounded text-[8px] font-medium bg-muted/60 text-nf-ink-3">
                                                                                         <CheckSquare size={7} />
                                                                                         <span>{done}/{total}</span>
                                                                                     </div>
@@ -253,7 +253,7 @@ export default function TodosBrowser({
                                                                                 const today = new Date(); today.setHours(0, 0, 0, 0);
                                                                                 const due = new Date(todo.due_date); due.setHours(0, 0, 0, 0);
                                                                                 const diff = Math.round((due - today) / (1000 * 60 * 60 * 24));
-                                                                                const color = diff < 0 ? 'bg-red-100 text-red-600' : diff === 0 ? 'bg-orange-100 text-orange-600' : diff === 1 ? 'bg-yellow-100 text-yellow-600' : 'bg-muted/60 text-muted-foreground';
+                                                                                const color = diff < 0 ? 'bg-nf-red-soft text-nf-due-overdue' : diff === 0 ? 'bg-orange-100 text-orange-600' /* TODO(redesign): classify color */ : diff === 1 ? 'bg-yellow-100 text-yellow-600' /* TODO(redesign): classify color */ : 'bg-muted/60 text-nf-ink-3';
                                                                                 const dueDateStr = new Date(todo.due_date).toISOString().split('T')[0];
                                                                                 return (
                                                                                     <div className="relative flex items-center gap-1 cursor-pointer hover:opacity-70" onClick={(e) => { e.stopPropagation(); e.currentTarget.querySelector('input')?.showPicker(); }}>
@@ -264,7 +264,7 @@ export default function TodosBrowser({
                                                                                             </span>
                                                                                         )}
                                                                                         {visibleFields?.includes('dueDate') && (
-                                                                                            <span className="text-[8px] text-muted-foreground">{new Date(todo.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                                                                                            <span className="text-[8px] text-nf-ink-3">{new Date(todo.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                                                                                         )}
                                                                                         <input
                                                                                             type="date"
@@ -281,11 +281,11 @@ export default function TodosBrowser({
                                                             </SortableBoardCard>
                                                         ))}
                                                         {group.todos.length === 0 && (
-                                                            <div className="text-center py-8 text-muted-foreground text-xs italic">No todos</div>
+                                                            <div className="text-center py-8 text-nf-ink-3 text-xs italic">No todos</div>
                                                         )}
                                                         {inlineAddingGroupId === group.key ? (
-                                                            <div className="flex items-center gap-2 mt-2 px-3 py-1.5 border rounded-lg bg-background shadow-sm">
-                                                                <Plus size={14} className="text-muted-foreground" />
+                                                            <div className="flex items-center gap-2 mt-2 px-3 py-1.5 border rounded-lg bg-nf-card shadow-sm">
+                                                                <Plus size={14} className="text-nf-ink-3" />
                                                                 <Input
                                                                     autoFocus
                                                                     value={inlineTodoText}
@@ -317,7 +317,7 @@ export default function TodosBrowser({
                                                         ) : (
                                                             <button
                                                                 onClick={() => { setInlineAddingGroupId(group.key); setInlineTodoText(''); }}
-                                                                className="flex items-center gap-2 mt-2 py-1.5 px-2 text-xs text-muted-foreground hover:bg-muted/50 rounded-md transition-colors w-full text-left"
+                                                                className="flex items-center gap-2 mt-2 py-1.5 px-2 text-xs text-nf-ink-3 hover:bg-muted/50 rounded-md transition-colors w-full text-left"
                                                             >
                                                                 <Plus size={12} /> New action
                                                             </button>
@@ -355,9 +355,9 @@ export default function TodosBrowser({
                                                             </div>
                                                         </SortableContext>
                                                         {inlineAddingGroupId === group.key ? (
-                                                            <div className="flex items-center gap-2 py-1 px-3 border rounded-lg bg-background shadow-sm">
+                                                            <div className="flex items-center gap-2 py-1 px-3 border rounded-lg bg-nf-card shadow-sm">
                                                                 <div className="w-5" />
-                                                                <Plus size={14} className="text-muted-foreground" />
+                                                                <Plus size={14} className="text-nf-ink-3" />
                                                                 <Input
                                                                     autoFocus
                                                                     value={inlineTodoText}
@@ -389,7 +389,7 @@ export default function TodosBrowser({
                                                         ) : (
                                                             <button
                                                                 onClick={() => { setInlineAddingGroupId(group.key); setInlineTodoText(''); }}
-                                                                className="flex items-center gap-2 py-1 px-3 text-xs text-muted-foreground hover:bg-muted/50 rounded-md transition-colors w-full text-left opacity-60 hover:opacity-100 focus-visible:opacity-100"
+                                                                className="flex items-center gap-2 py-1 px-3 text-xs text-nf-ink-3 hover:bg-muted/50 rounded-md transition-colors w-full text-left opacity-60 hover:opacity-100 focus-visible:opacity-100"
                                                             >
                                                                 <div className="w-5" />
                                                                 <Plus size={14} /> New action
@@ -410,13 +410,13 @@ export default function TodosBrowser({
                                         {activeDragGroup.color && (
                                             <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: activeDragGroup.color }} />
                                         )}
-                                        <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide truncate">{activeDragGroup.label || 'All'}</h3>
+                                        <h3 className="text-xs font-semibold text-nf-ink uppercase tracking-wide truncate">{activeDragGroup.label || 'All'}</h3>
                                         <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: '#5BA89D20', color: '#5BA89D' }}>{activeDragGroup.todos.length}</span>
                                     </div>
                                 </div>
                             ) : activeDragTodo ? (
-                                <div className="bg-background border rounded-md shadow-lg px-3 py-2 flex items-center gap-2 opacity-90 cursor-grabbing">
-                                    <span className={`text-xs ${activeDragTodo.is_done ? 'line-through text-muted-foreground' : ''}`}>
+                                <div className="bg-nf-card border rounded-md shadow-lg px-3 py-2 flex items-center gap-2 opacity-90 cursor-grabbing">
+                                    <span className={`text-xs ${activeDragTodo.is_done ? 'line-through text-nf-ink-3' : ''}`}>
                                         {activeDragTodo.text || 'Empty todo'}
                                     </span>
                                     {activeDragTodo.tags?.map(tag => (
