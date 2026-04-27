@@ -68,7 +68,7 @@ export default function DueDatePicker({ dueDate, recurrence, onChange }) {
     <div className="relative">
       <button
         onClick={() => setShowPicker(!showPicker)}
-        className="relative flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors rounded px-1.5 py-1 hover:bg-muted/50"
+        className="relative flex items-center justify-center text-nf-ink-3 hover:text-foreground transition-colors rounded px-1.5 py-1 hover:bg-muted/50"
       >
         {dueDate ? (
           <div className="flex items-center gap-1.5">
@@ -138,7 +138,7 @@ export default function DueDatePicker({ dueDate, recurrence, onChange }) {
                     <div className="border-t my-1" />
                     <button
                       onClick={handleClearDueDate}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-muted-foreground"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-nf-ink-3"
                     >
                       Clear due date
                     </button>
@@ -151,7 +151,7 @@ export default function DueDatePicker({ dueDate, recurrence, onChange }) {
                 <div className="px-3 py-2 border-b">
                   <button
                     onClick={() => setShowRecurrence(false)}
-                    className="text-sm text-muted-foreground hover:text-foreground"
+                    className="text-sm text-nf-ink-3 hover:text-foreground"
                   >
                     ← Back
                   </button>
@@ -179,7 +179,7 @@ export default function DueDatePicker({ dueDate, recurrence, onChange }) {
                     <div className="border-t my-1" />
                     <button
                       onClick={() => handleRecurrenceChange(null)}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-muted-foreground"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-nf-ink-3"
                     >
                       Clear repeat
                     </button>
