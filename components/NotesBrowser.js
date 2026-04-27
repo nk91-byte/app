@@ -80,7 +80,7 @@ export default function NotesBrowser({
     return (
         <div className="space-y-3">
             {notes.length === 0 && !loading && (
-                <div className="text-center py-16 text-muted-foreground">
+                <div className="text-center py-16 text-nf-ink-3">
                     <BookOpen className="mx-auto mb-3" size={40} strokeWidth={1} />
                     <p className="text-lg font-medium">No notes yet</p>
                     <p className="text-sm mt-1">Create your first note to get started</p>
@@ -161,7 +161,7 @@ export default function NotesBrowser({
                             {group.color && (
                                 <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
                             )}
-                            <h3 className="text-xs font-semibold text-foreground uppercase tracking-wide truncate">{group.label || 'All'}</h3>
+                            <h3 className="text-xs font-semibold text-nf-ink uppercase tracking-wide truncate">{group.label || 'All'}</h3>
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: '#5BA89D20', color: '#5BA89D' }}>{group.key === 'all' ? noteTotal : group.notes.length}</span>
                             <div className="flex-1" />
                             {noteGroupBy === 'meeting' && setNoteMeetingFilters && (
@@ -173,7 +173,7 @@ export default function NotesBrowser({
                                             prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]
                                         );
                                     }}
-                                    className="p-0.5 rounded text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted transition-colors"
+                                    className="p-0.5 rounded text-nf-ink-3/40 hover:text-nf-ink-3 hover:bg-muted transition-colors"
                                     title={`Hide ${group.label || 'group'}`}
                                 >
                                     <EyeOff size={12} />
@@ -185,7 +185,7 @@ export default function NotesBrowser({
                                         e.stopPropagation();
                                         createNoteInGroup(group, noteGroupBy);
                                     }}
-                                    className="w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground/50 hover:text-foreground hover:bg-background/80 transition-colors"
+                                    className="w-5 h-5 rounded-full flex items-center justify-center text-nf-ink-3/50 hover:text-nf-ink hover:bg-background/80 transition-colors"
                                     title="New note"
                                 >
                                     <Plus size={13} />
@@ -209,17 +209,17 @@ export default function NotesBrowser({
                                             <div
                                                 key={note.id}
                                                 onClick={() => { setSelectedNoteId(note.id); setEditingNote(note); setTagDropdownNoteId(null); }}
-                                                className={`border rounded-lg transition-all bg-background cursor-pointer ${isSelected ? 'ring-2 ring-primary/20 border-primary/30 shadow-sm' : 'hover:border-primary/20 hover:shadow-sm'}`}
+                                                className={`border rounded-lg transition-all bg-nf-card cursor-pointer ${isSelected ? 'ring-2 ring-primary/20 border-primary/30 shadow-sm' : 'hover:border-primary/20 hover:shadow-sm'}`}
                                             >
                                                 <div className="px-3 py-2.5">
-                                                    <h3 className="font-medium text-xs truncate text-orange-500">{note.title || <span className="text-orange-300">Untitled</span>}</h3>
+                                                    <h3 className="font-medium text-xs truncate text-nf-accent">{note.title || <span className="text-orange-300">Untitled</span>}</h3>
                                                     {visibleFields?.includes('preview') && note.content && (() => {
                                                         const parsed = typeof note.content === 'string' ? (() => { try { return JSON.parse(note.content); } catch { return null; } })() : note.content;
                                                         const preview = parsed ? getContentPreview(parsed) : (typeof note.content === 'string' ? note.content.replace(/<[^>]*>/g, '').slice(0, 100) : '');
-                                                        return preview ? <p className="text-xs text-foreground mt-1 line-clamp-2">{preview}</p> : null;
+                                                        return preview ? <p className="text-xs text-nf-ink mt-1 line-clamp-2">{preview}</p> : null;
                                                     })()}
                                                     {(visibleFields?.includes('date') || visibleFields?.includes('actionItems')) && (
-                                                        <div className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground flex-wrap">
+                                                        <div className="flex items-center gap-1 mt-2 text-[10px] text-nf-ink-3 flex-wrap">
                                                             {visibleFields?.includes('date') && (
                                                                 <div className="flex items-center gap-1 mr-2">
                                                                     <Clock size={9} className="flex-shrink-0" />
@@ -233,7 +233,7 @@ export default function NotesBrowser({
                                                                 if (totalCount === 0) return null;
                                                                 const completedCount = editorItems.filter(t => t.isChecked).length + aiClaimed.filter(i => i.is_done).length;
                                                                 return (
-                                                                    <div className="flex items-center gap-1 px-1 py-0.5 rounded text-[10px] font-medium bg-muted/60 text-muted-foreground">
+                                                                    <div className="flex items-center gap-1 px-1 py-0.5 rounded text-[10px] font-medium bg-muted/60 text-nf-ink-3">
                                                                         <CheckSquare size={9} />
                                                                         <span>{completedCount}/{totalCount}</span>
                                                                     </div>
@@ -269,7 +269,7 @@ export default function NotesBrowser({
                                                                             setTagDropdownNoteId(tagDropdownNoteId === note.id ? null : note.id);
                                                                             setNewInlineTagName('');
                                                                         }}
-                                                                        className="text-[9px] px-1.5 py-0.5 rounded-full border border-dashed border-muted-foreground/30 text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
+                                                                        className="text-[9px] px-1.5 py-0.5 rounded-full border border-dashed border-muted-foreground/30 text-nf-ink-3 hover:border-primary/50 hover:text-nf-ink transition-colors"
                                                                     >
                                                                         No tag
                                                                     </button>
@@ -298,7 +298,7 @@ export default function NotesBrowser({
                                                                             </div>
                                                                             <div className="max-h-40 overflow-y-auto py-1">
                                                                                 {sourceTags.length === 0 && (
-                                                                                    <p className="text-xs text-muted-foreground px-3 py-2 italic">No tags yet</p>
+                                                                                    <p className="text-xs text-nf-ink-3 px-3 py-2 italic">No tags yet</p>
                                                                                 )}
                                                                                 {sourceTags.map(tag => {
                                                                                     const hasTag = (note.tags || []).some(t => t.id === tag.id);
@@ -328,12 +328,12 @@ export default function NotesBrowser({
                                         );
                                     })}
                                     {group.notes.length === 0 && (
-                                        <div className="text-center py-8 text-muted-foreground text-xs italic">No notes</div>
+                                        <div className="text-center py-8 text-nf-ink-3 text-xs italic">No notes</div>
                                     )}
                                     {createNoteInGroup && (
                                         <button
                                             onClick={() => createNoteInGroup(group, noteGroupBy)}
-                                            className="flex items-center gap-2 mt-2 py-1.5 px-2 text-xs text-muted-foreground hover:bg-muted/50 rounded-md transition-colors w-full text-left"
+                                            className="flex items-center gap-2 mt-2 py-1.5 px-2 text-xs text-nf-ink-3 hover:bg-muted/50 rounded-md transition-colors w-full text-left"
                                         >
                                             <Plus size={12} /> New note
                                         </button>
@@ -366,16 +366,16 @@ export default function NotesBrowser({
 
                 const NoteGroupHeader = ({ group, isCollapsed, onToggle }) => (
                     <div
-                        className="flex items-center gap-2 mb-2 sticky top-0 bg-background/95 backdrop-blur-sm py-1.5 z-10 cursor-pointer select-none"
+                        className="flex items-center gap-2 mb-2 sticky top-0 bg-nf-bg/95 backdrop-blur-sm py-1.5 z-10 cursor-pointer select-none"
                         onClick={onToggle}
                     >
-                        <div className="p-0.5 hover:bg-muted rounded text-muted-foreground">
+                        <div className="p-0.5 hover:bg-muted rounded text-nf-ink-3">
                             <ChevronRight size={14} className={`transition-transform ${!isCollapsed ? 'rotate-90' : ''}`} />
                         </div>
                         {group.color && (
                             <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
                         )}
-                        <h3 className="text-[10px] font-semibold text-foreground uppercase tracking-wide">{group.label}</h3>
+                        <h3 className="text-[10px] font-semibold text-nf-ink uppercase tracking-wide">{group.label}</h3>
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: '#5BA89D20', color: '#5BA89D' }}>{group.key === 'all' ? noteTotal : group.notes.length}</span>
                         <div className={`flex-1 border-b ${group.color ? 'opacity-30' : 'border-border/50'}`} style={group.color ? { borderColor: group.color } : {}} />
                     </div>
@@ -410,17 +410,17 @@ export default function NotesBrowser({
                                             >
                                                 <div className="px-4 py-3 flex items-start justify-between">
                                                     <div className="flex-1 min-w-0">
-                                                        <h3 className="font-medium text-xs truncate text-orange-500">
-                                                            {note.title || <span className="text-orange-300 italic">Untitled</span>}
+                                                        <h3 className="font-medium text-xs truncate text-nf-accent">
+                                                            {note.title || <span className="text-orange-300 italic">Untitled</span> /* TODO(redesign): classify color */}
                                                         </h3>
                                                         {visibleFields?.includes('preview') && note.content && (() => {
                                                             const parsed = typeof note.content === 'string' ? (() => { try { return JSON.parse(note.content); } catch { return null; } })() : note.content;
                                                             const preview = parsed ? getContentPreview(parsed) : (typeof note.content === 'string' ? note.content.replace(/<[^>]*>/g, '').slice(0, 120) : '');
-                                                            return preview ? <p className="text-xs text-foreground mt-1 line-clamp-1">{preview}</p> : null;
+                                                            return preview ? <p className="text-xs text-nf-ink mt-1 line-clamp-1">{preview}</p> : null;
                                                         })()}
                                                         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                                             {visibleFields?.includes('date') && (
-                                                                <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                                                <span className="text-[11px] text-nf-ink-3 flex items-center gap-1">
                                                                     <Clock size={10} />
                                                                     {formatDate(note.created_at)}
                                                                 </span>
@@ -432,7 +432,7 @@ export default function NotesBrowser({
                                                                 if (totalCount === 0) return null;
                                                                 const completedCount = editorItems.filter(t => t.isChecked).length + aiClaimed.filter(i => i.is_done).length;
                                                                 return (
-                                                                    <span className="text-[11px] flex items-center gap-1 px-1.5 py-0.5 rounded font-medium bg-muted/60 text-muted-foreground">
+                                                                    <span className="text-[11px] flex items-center gap-1 px-1.5 py-0.5 rounded font-medium bg-muted/60 text-nf-ink-3">
                                                                         <CheckSquare size={10} />
                                                                         {completedCount}/{totalCount}
                                                                     </span>
@@ -463,7 +463,7 @@ export default function NotesBrowser({
                                                                         setTagDropdownNoteId(tagDropdownNoteId === note.id ? null : note.id);
                                                                         setNewInlineTagName('');
                                                                     }}
-                                                                    className="text-[11px] px-1.5 py-0.5 rounded-full border border-dashed border-muted-foreground/30 text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors flex items-center gap-0.5"
+                                                                    className="text-[11px] px-1.5 py-0.5 rounded-full border border-dashed border-muted-foreground/30 text-nf-ink-3 hover:border-primary/50 hover:text-nf-ink transition-colors flex items-center gap-0.5"
                                                                 >
                                                                     No tag
                                                                 </button>
@@ -492,7 +492,7 @@ export default function NotesBrowser({
                                                                         </div>
                                                                         <div className="max-h-40 overflow-y-auto py-1">
                                                                             {sourceTags.length === 0 && (
-                                                                                <p className="text-xs text-muted-foreground px-3 py-2 italic">No tags yet</p>
+                                                                                <p className="text-xs text-nf-ink-3 px-3 py-2 italic">No tags yet</p>
                                                                             )}
                                                                             {sourceTags.map(tag => {
                                                                                 const hasTag = (note.tags || []).some(t => t.id === tag.id);
@@ -526,7 +526,7 @@ export default function NotesBrowser({
                             {!isCollapsed && createNoteInGroup && (
                                 <button
                                     onClick={() => createNoteInGroup(group, noteGroupBy)}
-                                    className="flex items-center gap-2 py-1 px-4 text-xs text-muted-foreground hover:bg-muted/50 rounded-md transition-colors w-full text-left opacity-60 hover:opacity-100 focus-visible:opacity-100"
+                                    className="flex items-center gap-2 py-1 px-4 text-xs text-nf-ink-3 hover:bg-muted/50 rounded-md transition-colors w-full text-left opacity-60 hover:opacity-100 focus-visible:opacity-100"
                                 >
                                     <Plus size={14} /> New note
                                 </button>
@@ -553,7 +553,7 @@ export default function NotesBrowser({
                         variant="outline"
                         size="sm"
                         onClick={loadMoreNotes}
-                        className="text-muted-foreground hover:text-foreground"
+                        className="text-nf-ink-3 hover:text-nf-ink"
                     >
                         Load More Notes ({noteTotal - notes.length} remaining)
                     </Button>
