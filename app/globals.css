@@ -37,9 +37,47 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* ───── NEW TOKENS — redesign — added 2026-04 ─────
+       Read by Tailwind via tailwind.config.js. Do not use directly in
+       components yet; STEP 2 swaps the old tokens for these.
+    */
+
+    /* Surface — warm paper palette */
+    --nf-bg:           38 33% 96%;   /* #FAF7F1  — page background */
+    --nf-panel:        40 30% 92%;   /* #F2EEE4  — sub-panel / chip bg */
+    --nf-rail:         42 28% 89%;   /* #EDE8DA  — left contextual rail */
+    --nf-card:         0  0% 100%;   /* #FFFFFF  — note/todo card */
+    --nf-border:       42 24% 83%;   /* #E0DAC9  — primary divider */
+    --nf-border-soft:  42 28% 88%;   /* #EBE5D3  — secondary divider */
+
+    /* Ink — warm near-blacks */
+    --nf-ink:          36 8% 10%;    /* #1B1A17  — primary text */
+    --nf-ink-2:        36 8% 21%;    /* #3C3A34  — secondary text */
+    --nf-ink-3:        36 7% 40%;    /* #6E6A60  — tertiary / metadata */
+    --nf-muted:        38 8% 58%;    /* #9D988B  — placeholders, hints */
+
+    /* Brand accent — clay */
+    --nf-accent:       12 56% 42%;   /* #A8492F  — primary accent (note titles, chips) */
+    --nf-accent-soft:  12 56% 42% / 0.094;  /* same hue, used as bg tint */
+
+    /* Semantic — kept warm to fit the cream surface */
+    --nf-status-open:    32 51% 47%; /* #B5803A — amber */
+    --nf-status-closed:  142 19% 46%;/* #5E8A6F — sage green */
+    --nf-status-none:    42 24% 83%; /* same as border — neutral hollow */
+    --nf-due-overdue:    9 47% 47%;  /* #B5523C — soft red */
+    --nf-link:           208 31% 42%;/* #4A6E8A — slate blue */
+
+    /* Tints (alpha variants for soft fills) */
+    --nf-amber-soft:   32 51% 47% / 0.10;
+    --nf-green-soft:   142 19% 46% / 0.10;
+    --nf-red-soft:     9 47% 47% / 0.094;
+    --nf-blue-soft:    208 31% 42% / 0.094;
   }
 
   .dark {
+    /* If a dark-mode redesign comes later, mirror these here. For now, dark
+       mode keeps using the existing tokens. */
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
     --card: 222.2 84% 4.9%;

@@ -67,6 +67,33 @@ module.exports = {
     				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
     				border: 'hsl(var(--sidebar-border))',
     				ring: 'hsl(var(--sidebar-ring))'
+    			},
+    			nf: {
+    				bg:            'hsl(var(--nf-bg))',
+    				panel:         'hsl(var(--nf-panel))',
+    				rail:          'hsl(var(--nf-rail))',
+    				card:          'hsl(var(--nf-card))',
+    				border:        'hsl(var(--nf-border))',
+    				'border-soft': 'hsl(var(--nf-border-soft))',
+
+    				ink:           'hsl(var(--nf-ink))',
+    				'ink-2':       'hsl(var(--nf-ink-2))',
+    				'ink-3':       'hsl(var(--nf-ink-3))',
+    				muted:         'hsl(var(--nf-muted))',
+
+    				accent:        'hsl(var(--nf-accent))',
+    				'accent-soft': 'hsl(var(--nf-accent-soft))',
+
+    				'status-open':   'hsl(var(--nf-status-open))',
+    				'status-closed': 'hsl(var(--nf-status-closed))',
+    				'status-none':   'hsl(var(--nf-status-none))',
+    				'due-overdue':   'hsl(var(--nf-due-overdue))',
+    				link:            'hsl(var(--nf-link))',
+
+    				'amber-soft':    'hsl(var(--nf-amber-soft))',
+    				'green-soft':    'hsl(var(--nf-green-soft))',
+    				'red-soft':      'hsl(var(--nf-red-soft))',
+    				'blue-soft':     'hsl(var(--nf-blue-soft))',
     			}
     		},
     		borderRadius: {
