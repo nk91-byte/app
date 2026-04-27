@@ -222,7 +222,7 @@ export default function Sidebar({
                 ) : (
                     <button
                         onClick={onLogout}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors"
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-nf-ink-3 hover:text-red-500 hover:bg-red-50 transition-colors"
                     >
                         <LogOut size={14} />
                         <span>Sign out</span>
@@ -272,7 +272,7 @@ function SavedViewsSection({
             >
                 <ChevronRight
                     size={12}
-                    className={`text-muted-foreground transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
+                    className={`text-nf-ink-3 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
                 />
                 <Icon size={14} style={{ color: '#5BA89D' }} />
                 <span className="text-xs font-semibold uppercase tracking-wider flex-1" style={{ color: '#5BA89D' }}>
@@ -288,7 +288,7 @@ function SavedViewsSection({
             {!isCollapsed && (
                 <div className="space-y-1 pl-4">
                     {savedViews.length === 0 ? (
-                        <p className="text-[10px] text-muted-foreground py-2 italic">
+                        <p className="text-[10px] text-nf-ink-3 py-2 italic">
                             No saved views yet
                         </p>
                     ) : (
@@ -330,9 +330,9 @@ function SavedViewsSection({
                                             className="flex items-center gap-2 flex-1 min-w-0"
                                         >
                                             {view.viewLayout === 'board' ? (
-                                                <LayoutGrid size={12} className="flex-shrink-0 text-muted-foreground" />
+                                                <LayoutGrid size={12} className="flex-shrink-0 text-nf-ink-3" />
                                             ) : (
-                                                <List size={12} className="flex-shrink-0 text-muted-foreground" />
+                                                <List size={12} className="flex-shrink-0 text-nf-ink-3" />
                                             )}
                                             <span className="truncate">{view.name}</span>
                                         </button>
@@ -341,7 +341,7 @@ function SavedViewsSection({
                                                 e.stopPropagation();
                                                 setMenuViewId(menuViewId === view.id ? null : view.id);
                                             }}
-                                            className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-muted text-muted-foreground hover:text-foreground flex-shrink-0"
+                                            className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-muted text-nf-ink-3 hover:text-nf-ink flex-shrink-0"
                                         >
                                             <MoreHorizontal size={12} />
                                         </button>
@@ -373,7 +373,7 @@ function SavedViewsSection({
                                                 <Save size={11} /> Update
                                             </button>
                                             <div className="px-3 py-1.5">
-                                                <div className="text-[10px] text-muted-foreground mb-1.5">View Type</div>
+                                                <div className="text-[10px] text-nf-ink-3 mb-1.5">View Type</div>
                                                 <div className="flex gap-1">
                                                     <button
                                                         className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] border transition-colors ${view.viewLayout === 'list'
@@ -440,7 +440,7 @@ function SavedViewsSection({
                                 className="h-7 text-xs"
                             />
                             <div className="space-y-1">
-                                <div className="text-[10px] text-muted-foreground">View Type</div>
+                                <div className="text-[10px] text-nf-ink-3">View Type</div>
                                 <div className="flex gap-1">
                                     <button
                                         className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded text-[10px] border transition-colors flex-1 ${newViewLayout === 'list'
@@ -491,7 +491,7 @@ function SavedViewsSection({
                                 }
                                 setSavingNew(true);
                             }}
-                            className="w-full text-left px-2 py-1.5 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50 transition-colors"
+                            className="w-full text-left px-2 py-1.5 rounded text-xs text-nf-ink-3 hover:text-nf-ink hover:bg-sidebar-accent/50 transition-colors"
                         >
                             + New saved view
                         </button>
