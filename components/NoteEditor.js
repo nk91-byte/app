@@ -128,7 +128,7 @@ function ToolbarButton({ onClick, active, disabled, children, title }) {
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`p-1 rounded-md transition-colors ${active ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+      className={`p-1 rounded-md transition-colors ${active ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-nf-ink-3 hover:text-nf-ink'
         } ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
     >
       {children}
@@ -460,7 +460,7 @@ export default function NoteEditor({ content, onUpdate, placeholder, toolbarOpen
                     editor.chain().focus().unsetColor().run();
                     setShowColorPicker(false);
                   }}
-                  className="w-5 h-5 rounded-full border border-border hover:scale-110 transition-transform text-[8px] flex items-center justify-center text-muted-foreground"
+                  className="w-5 h-5 rounded-full border border-border hover:scale-110 transition-transform text-[8px] flex items-center justify-center text-nf-ink-3"
                   title="Reset color"
                 >
                   ✕
@@ -477,7 +477,7 @@ export default function NoteEditor({ content, onUpdate, placeholder, toolbarOpen
             title={formatPainterLocked ? "Format painter locked – click to cancel" : copiedFormat ? "Format painter active – select text to apply (click to cancel)" : "Copy format (double-click to lock)"}
             className={`p-1 rounded-md transition-colors cursor-pointer ${formatPainterLocked ? 'bg-primary text-primary-foreground ring-2 ring-primary/50' :
               copiedFormat ? 'bg-primary text-primary-foreground' :
-                'hover:bg-muted text-muted-foreground hover:text-foreground'
+                'hover:bg-muted text-nf-ink-3 hover:text-nf-ink'
               }`}
           >
             <Paintbrush size={iconSize} />
@@ -620,7 +620,7 @@ export default function NoteEditor({ content, onUpdate, placeholder, toolbarOpen
                   })()}
                   <button
                     onClick={() => setBubbleMenuExpanded(true)}
-                    className={`p-0.5 rounded hover:bg-muted transition-colors ${activeTaskNode.node.attrs.dueDate || activeTaskNode.node.attrs.projectTagId ? 'text-primary/70' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
+                    className={`p-0.5 rounded hover:bg-muted transition-colors ${activeTaskNode.node.attrs.dueDate || activeTaskNode.node.attrs.projectTagId ? 'text-primary/70' : 'text-nf-ink-3/40 hover:text-nf-ink-3'}`}
                     title="Task Options"
                   >
                     <MoreHorizontal size={10} />
@@ -630,7 +630,7 @@ export default function NoteEditor({ content, onUpdate, placeholder, toolbarOpen
                 <>
                   <button
                     onClick={() => setBubbleMenuExpanded(false)}
-                    className="p-1 rounded hover:bg-muted text-muted-foreground/60 transition-colors"
+                    className="p-1 rounded hover:bg-muted text-nf-ink-3/60 transition-colors"
                     title="Collapse Options"
                   >
                     <X size={10} />
@@ -642,7 +642,7 @@ export default function NoteEditor({ content, onUpdate, placeholder, toolbarOpen
                   <div className="relative flex items-center">
                     <button
                       onClick={() => document.getElementById(`inline-date-${currentIdRef.current}`)?.showPicker()}
-                      className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-dashed transition-colors ${activeTaskNode.node.attrs.dueDate ? 'border-primary/30 text-foreground bg-primary/5' : 'border-transparent text-muted-foreground hover:bg-muted'
+                      className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-dashed transition-colors ${activeTaskNode.node.attrs.dueDate ? 'border-primary/30 text-foreground bg-primary/5' : 'border-transparent text-nf-ink-3 hover:bg-muted'
                         }`}
                     >
                       <Calendar size={12} />
@@ -666,7 +666,7 @@ export default function NoteEditor({ content, onUpdate, placeholder, toolbarOpen
                           e.stopPropagation();
                           editor.chain().focus().setNodeSelection(activeTaskNode.pos).updateAttributes('taskItem', { dueDate: null }).setTextSelection(activeTaskNode.pos + 2).run();
                         }}
-                        className="absolute -right-1 -top-1 p-0.5 bg-muted rounded-full text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute -right-1 -top-1 p-0.5 bg-muted rounded-full text-nf-ink-3 hover:text-nf-ink opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <X size={8} />
                       </button>
@@ -679,7 +679,7 @@ export default function NoteEditor({ content, onUpdate, placeholder, toolbarOpen
                   <Popover>
                     <PopoverTrigger asChild>
                       <button
-                        className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-dashed transition-colors ${activeTaskNode.node.attrs.projectTagId ? 'border-primary/30 text-foreground bg-primary/5' : 'border-transparent text-muted-foreground hover:bg-muted'
+                        className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded border border-dashed transition-colors ${activeTaskNode.node.attrs.projectTagId ? 'border-primary/30 text-foreground bg-primary/5' : 'border-transparent text-nf-ink-3 hover:bg-muted'
                           }`}
                       >
                         <Tag size={12} />
@@ -691,7 +691,7 @@ export default function NoteEditor({ content, onUpdate, placeholder, toolbarOpen
                     <PopoverContent className="w-48 p-1" align="start" sideOffset={5}>
                       <div className="max-h-48 overflow-y-auto">
                         {projectTags.length === 0 && (
-                          <p className="text-xs text-muted-foreground px-2 py-2 italic">No projects exist</p>
+                          <p className="text-xs text-nf-ink-3 px-2 py-2 italic">No projects exist</p>
                         )}
                         {projectTags.map(tag => {
                           const isSelected = activeTaskNode.node.attrs.projectTagId === tag.id;
