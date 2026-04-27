@@ -63,7 +63,7 @@ export default function TopNavBar({
     return (<>
         <div className="border-b px-6 py-3 flex items-center gap-3">
             <div className="relative flex-1 max-w-md">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-nf-ink-3" />
                 <Input
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
@@ -77,7 +77,7 @@ export default function TopNavBar({
                 {searchQuery && (
                     <button
                         onClick={() => setSearchQuery('')}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-nf-ink-3 hover:text-nf-ink"
                     >
                         <X size={12} />
                     </button>
@@ -97,7 +97,7 @@ export default function TopNavBar({
                                     if (hidden > 0) return <span>{hidden} Hidden</span>;
                                     return <span>All Statuses</span>;
                                 })()}
-                                <CheckSquare size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                                <CheckSquare size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-nf-ink-3 pointer-events-none" />
                             </button>
                         </PopoverTrigger>
                         <PopoverContent className="w-40 p-1" align="start">
@@ -137,7 +137,7 @@ export default function TopNavBar({
                                         }}
                                     >
                                         <span>{displayName}</span>
-                                        {isVisible ? <Eye size={10} className="text-muted-foreground" /> : <EyeOff size={10} className="text-muted-foreground" />}
+                                        {isVisible ? <Eye size={10} className="text-nf-ink-3" /> : <EyeOff size={10} className="text-nf-ink-3" />}
                                     </button>
                                 );
                             })}
@@ -152,7 +152,7 @@ export default function TopNavBar({
                                     ? <span>All Meetings</span>
                                     : <span>{noteMeetingFilters.length} Hidden</span>
                                 }
-                                <CircleDot size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                                <CircleDot size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-nf-ink-3 pointer-events-none" />
                             </button>
                         </PopoverTrigger>
                         <PopoverContent className="w-48 p-1" align="start">
@@ -188,7 +188,7 @@ export default function TopNavBar({
                                             <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
                                             <span className="truncate">{t.name}</span>
                                         </div>
-                                        {isVisible ? <Eye size={10} className="text-muted-foreground" /> : <EyeOff size={10} className="text-muted-foreground" />}
+                                        {isVisible ? <Eye size={10} className="text-nf-ink-3" /> : <EyeOff size={10} className="text-nf-ink-3" />}
                                     </button>
                                 );
                             })}
@@ -208,19 +208,19 @@ export default function TopNavBar({
                             <option value="meeting">Group by Meeting</option>
                             <option value="date">Group by Date</option>
                         </select>
-                        <LayoutGrid size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                        <LayoutGrid size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-nf-ink-3 pointer-events-none" />
                     </div>
 
                     {/* Properties toggle */}
                     <Popover>
                         <PopoverTrigger asChild>
-                            <button className="h-7 px-2 rounded-md border text-xs bg-background hover:border-primary/50 flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
+                            <button className="h-7 px-2 rounded-md border text-xs bg-background hover:border-primary/50 flex items-center gap-1 text-nf-ink-3 hover:text-nf-ink transition-colors">
                                 <SlidersHorizontal size={10} />
                                 <span>Properties</span>
                             </button>
                         </PopoverTrigger>
                         <PopoverContent className="w-48 p-2" align="start">
-                            <div className="text-xs font-medium text-muted-foreground mb-2">Visible fields</div>
+                            <div className="text-xs font-medium text-nf-ink-3 mb-2">Visible fields</div>
                             {[
                                 { key: 'date', label: 'Date' },
                                 { key: 'actionItems', label: 'Action Items' },
@@ -241,7 +241,7 @@ export default function TopNavBar({
                                         className="w-full flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted text-xs transition-colors"
                                     >
                                         <span>{field.label}</span>
-                                        {active ? <Eye size={12} className="text-foreground" /> : <EyeOff size={12} className="text-muted-foreground" />}
+                                        {active ? <Eye size={12} className="text-nf-ink" /> : <EyeOff size={12} className="text-nf-ink-3" />}
                                     </button>
                                 );
                             })}
@@ -254,7 +254,7 @@ export default function TopNavBar({
                     <div className="flex items-center border rounded-md overflow-hidden bg-background">
                         <button
                             onClick={() => setViewLayout('list')}
-                            className={`p-1.5 transition-colors ${viewLayout === 'list' ? 'font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+                            className={`p-1.5 transition-colors ${viewLayout === 'list' ? 'font-medium' : 'text-nf-ink-3 hover:text-nf-ink hover:bg-muted/50'}`}
                             style={viewLayout === 'list' ? { backgroundColor: '#5BA89D18', color: '#5BA89D' } : {}}
                             title="List view"
                         >
@@ -274,7 +274,7 @@ export default function TopNavBar({
                                     </button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-36 p-1" align="end" sideOffset={8}>
-                                    <div className="text-[10px] font-medium text-muted-foreground px-2 py-1 mb-1 bg-muted/30 rounded-sm">Column Size</div>
+                                    <div className="text-[10px] font-medium text-nf-ink-3 px-2 py-1 mb-1 bg-muted/30 rounded-sm">Column Size</div>
                                     {['small', 'medium', 'large'].map(size => (
                                         <button
                                             key={size}
@@ -282,7 +282,7 @@ export default function TopNavBar({
                                             className="w-full text-left px-2 py-1.5 text-xs rounded-sm hover:bg-muted transition-colors flex items-center justify-between"
                                         >
                                             <span className="capitalize">{size}</span>
-                                            {boardColumnSize === size && <Check size={10} className="text-foreground" />}
+                                            {boardColumnSize === size && <Check size={10} className="text-nf-ink" />}
                                         </button>
                                     ))}
                                 </PopoverContent>
@@ -290,7 +290,7 @@ export default function TopNavBar({
                         ) : (
                             <button
                                 onClick={() => { setViewLayout('board'); }}
-                                className="p-1.5 transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                className="p-1.5 transition-colors text-nf-ink-3 hover:text-nf-ink hover:bg-muted/50"
                                 title="Board view"
                             >
                                 <Columns3 size={12} />
@@ -301,7 +301,7 @@ export default function TopNavBar({
                     {noteMeetingFilters.length > 0 && (
                         <button
                             onClick={() => setNoteMeetingFilters([])}
-                            className="px-2 py-1 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            className="px-2 py-1 rounded-md text-xs text-nf-ink-3 hover:text-nf-ink hover:bg-muted transition-colors"
                         >
                             Clear filter
                         </button>
@@ -322,7 +322,7 @@ export default function TopNavBar({
                                     if (hidden > 0) return <span>{hidden} Hidden</span>;
                                     return <span>All Statuses</span>;
                                 })()}
-                                <CheckSquare size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                                <CheckSquare size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-nf-ink-3 pointer-events-none" />
                             </button>
                         </PopoverTrigger>
                         <PopoverContent className="w-40 p-1" align="start">
@@ -361,7 +361,7 @@ export default function TopNavBar({
                                         }}
                                     >
                                         <span className="capitalize">{status}</span>
-                                        {isVisible ? <Eye size={10} className="text-muted-foreground" /> : <EyeOff size={10} className="text-muted-foreground" />}
+                                        {isVisible ? <Eye size={10} className="text-nf-ink-3" /> : <EyeOff size={10} className="text-nf-ink-3" />}
                                     </button>
                                 );
                             })}
@@ -376,7 +376,7 @@ export default function TopNavBar({
                                     ? <span>All Projects</span>
                                     : <span>{todoProjectFilterIds.length} Hidden</span>
                                 }
-                                <FolderOpen size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                                <FolderOpen size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-nf-ink-3 pointer-events-none" />
                             </button>
                         </PopoverTrigger>
                         <PopoverContent className="w-48 p-1 max-h-[300px] overflow-y-auto" align="start">
@@ -405,7 +405,7 @@ export default function TopNavBar({
                                     <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-muted-foreground/30" />
                                     <span className="truncate">Inbox</span>
                                 </div>
-                                {!todoProjectFilterIds.includes('__untagged') ? <Eye size={10} className="text-muted-foreground" /> : <EyeOff size={10} className="text-muted-foreground" />}
+                                {!todoProjectFilterIds.includes('__untagged') ? <Eye size={10} className="text-nf-ink-3" /> : <EyeOff size={10} className="text-nf-ink-3" />}
                             </button>
                             {projectTags.map(t => {
                                 const isVisible = !todoProjectFilterIds.includes(t.id);
@@ -421,7 +421,7 @@ export default function TopNavBar({
                                             <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
                                             <span className="truncate">{t.name}</span>
                                         </div>
-                                        {isVisible ? <Eye size={10} className="text-muted-foreground" /> : <EyeOff size={10} className="text-muted-foreground" />}
+                                        {isVisible ? <Eye size={10} className="text-nf-ink-3" /> : <EyeOff size={10} className="text-nf-ink-3" />}
                                     </button>
                                 );
                             })}
@@ -431,7 +431,7 @@ export default function TopNavBar({
                     {hiddenBoardGroups.length > 0 && viewLayout === 'board' && (
                         <button
                             onClick={() => setHiddenBoardGroups([])}
-                            className="px-2 py-1 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-1 border border-dashed border-muted-foreground/30"
+                            className="px-2 py-1 rounded-md text-xs text-nf-ink-3 hover:text-nf-ink hover:bg-muted transition-colors flex items-center gap-1 border border-dashed border-muted-foreground/30"
                             title="Unhide board columns"
                         >
                             <Eye size={10} />
@@ -456,14 +456,14 @@ export default function TopNavBar({
                                     if (todoDateFilter.length === 1) return <span>{labels[todoDateFilter[0]]}</span>;
                                     return <span>{todoDateFilter.length} Selected</span>;
                                 })()}
-                                <CalendarIcon size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                                <CalendarIcon size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-nf-ink-3 pointer-events-none" />
                             </button>
                         </PopoverTrigger>
                         <PopoverContent className="w-56 p-0" align="start" sideOffset={5}>
                             <div className="flex items-center justify-between px-2 py-1.5 border-b">
-                                <span className="text-xs font-medium text-muted-foreground">Due Date</span>
+                                <span className="text-xs font-medium text-nf-ink-3">Due Date</span>
                                 {(todoDateFilter.length > 0 || todoDateRangeFrom || todoDateRangeTo) && (
-                                    <button onClick={() => { setTodoDateFilter([]); setTodoDateRangeFrom(''); setTodoDateRangeTo(''); }} className="text-[10px] text-muted-foreground hover:text-foreground">Clear</button>
+                                    <button onClick={() => { setTodoDateFilter([]); setTodoDateRangeFrom(''); setTodoDateRangeTo(''); }} className="text-[10px] text-nf-ink-3 hover:text-nf-ink">Clear</button>
                                 )}
                             </div>
                             <div className="py-1">
@@ -493,16 +493,16 @@ export default function TopNavBar({
                                             }}
                                         >
                                             <span>{opt.label}</span>
-                                            {isActive ? <Eye size={10} className="text-muted-foreground" /> : <EyeOff size={10} className="text-muted-foreground" />}
+                                            {isActive ? <Eye size={10} className="text-nf-ink-3" /> : <EyeOff size={10} className="text-nf-ink-3" />}
                                         </button>
                                     );
                                 })}
                             </div>
                             <div className="border-t px-2 py-2">
-                                <span className="text-[10px] text-muted-foreground font-medium">Custom Range</span>
+                                <span className="text-[10px] text-nf-ink-3 font-medium">Custom Range</span>
                                 <div className="flex flex-col gap-1.5 mt-1.5">
                                     <div className="flex items-center gap-1">
-                                        <span className="text-[10px] text-muted-foreground w-8">From</span>
+                                        <span className="text-[10px] text-nf-ink-3 w-8">From</span>
                                         <input
                                             type="date"
                                             value={todoDateRangeFrom}
@@ -511,7 +511,7 @@ export default function TopNavBar({
                                         />
                                     </div>
                                     <div className="flex items-center gap-1">
-                                        <span className="text-[10px] text-muted-foreground w-8">To</span>
+                                        <span className="text-[10px] text-nf-ink-3 w-8">To</span>
                                         <input
                                             type="date"
                                             value={todoDateRangeTo}
@@ -540,14 +540,14 @@ export default function TopNavBar({
                                     if (todoCreatedFilter.length > 0) return <span>Created: {todoCreatedFilter.map(f => labels[f]).join(', ')}</span>;
                                     return <span>Created</span>;
                                 })()}
-                                <Clock size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                                <Clock size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-nf-ink-3 pointer-events-none" />
                             </button>
                         </PopoverTrigger>
                         <PopoverContent className="w-56 p-0" align="start" sideOffset={5}>
                             <div className="flex items-center justify-between px-2 py-1.5 border-b">
-                                <span className="text-xs font-medium text-muted-foreground">Created Date</span>
+                                <span className="text-xs font-medium text-nf-ink-3">Created Date</span>
                                 {(todoCreatedFilter.length > 0 || todoCreatedRangeFrom || todoCreatedRangeTo) && (
-                                    <button onClick={() => { setTodoCreatedFilter([]); setTodoCreatedRangeFrom(''); setTodoCreatedRangeTo(''); }} className="text-[10px] text-muted-foreground hover:text-foreground">Clear</button>
+                                    <button onClick={() => { setTodoCreatedFilter([]); setTodoCreatedRangeFrom(''); setTodoCreatedRangeTo(''); }} className="text-[10px] text-nf-ink-3 hover:text-nf-ink">Clear</button>
                                 )}
                             </div>
                             <div className="py-1">
@@ -566,15 +566,15 @@ export default function TopNavBar({
                                         }}
                                     >
                                         <span>{opt.label}</span>
-                                        {todoCreatedFilter.includes(opt.id) ? <Eye size={10} className="text-muted-foreground" /> : <EyeOff size={10} className="text-muted-foreground" />}
+                                        {todoCreatedFilter.includes(opt.id) ? <Eye size={10} className="text-nf-ink-3" /> : <EyeOff size={10} className="text-nf-ink-3" />}
                                     </button>
                                 ))}
                             </div>
                             <div className="border-t px-2 py-2">
-                                <span className="text-[10px] text-muted-foreground font-medium">Custom Range</span>
+                                <span className="text-[10px] text-nf-ink-3 font-medium">Custom Range</span>
                                 <div className="flex flex-col gap-1.5 mt-1.5">
                                     <div className="flex items-center gap-1">
-                                        <span className="text-[10px] text-muted-foreground w-8">From</span>
+                                        <span className="text-[10px] text-nf-ink-3 w-8">From</span>
                                         <input
                                             type="date"
                                             value={todoCreatedRangeFrom}
@@ -583,7 +583,7 @@ export default function TopNavBar({
                                         />
                                     </div>
                                     <div className="flex items-center gap-1">
-                                        <span className="text-[10px] text-muted-foreground w-8">To</span>
+                                        <span className="text-[10px] text-nf-ink-3 w-8">To</span>
                                         <input
                                             type="date"
                                             value={todoCreatedRangeTo}
@@ -609,19 +609,19 @@ export default function TopNavBar({
                             <option value="status">Group by Status</option>
                             <option value="date">Group by Date</option>
                         </select>
-                        <LayoutGrid size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                        <LayoutGrid size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-nf-ink-3 pointer-events-none" />
                     </div>
 
                     {/* Properties toggle */}
                     <Popover>
                         <PopoverTrigger asChild>
-                            <button className="h-7 px-2 rounded-md border text-xs bg-background hover:border-primary/50 flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
+                            <button className="h-7 px-2 rounded-md border text-xs bg-background hover:border-primary/50 flex items-center gap-1 text-nf-ink-3 hover:text-nf-ink transition-colors">
                                 <SlidersHorizontal size={10} />
                                 <span>Properties</span>
                             </button>
                         </PopoverTrigger>
                         <PopoverContent className="w-48 p-2" align="start">
-                            <div className="text-xs font-medium text-muted-foreground mb-2">Visible fields</div>
+                            <div className="text-xs font-medium text-nf-ink-3 mb-2">Visible fields</div>
                             {[
                                 { key: 'tags', label: 'Tags' },
                                 { key: 'actionItems', label: 'Action Items' },
@@ -643,7 +643,7 @@ export default function TopNavBar({
                                         className="w-full flex items-center justify-between px-2 py-1.5 rounded hover:bg-muted text-xs transition-colors"
                                     >
                                         <span>{field.label}</span>
-                                        {active ? <Eye size={12} className="text-foreground" /> : <EyeOff size={12} className="text-muted-foreground" />}
+                                        {active ? <Eye size={12} className="text-nf-ink" /> : <EyeOff size={12} className="text-nf-ink-3" />}
                                     </button>
                                 );
                             })}
@@ -656,7 +656,7 @@ export default function TopNavBar({
                     <div className="flex items-center border rounded-md overflow-hidden bg-background">
                         <button
                             onClick={() => setViewLayout('list')}
-                            className={`p-1.5 transition-colors ${viewLayout === 'list' ? 'font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}
+                            className={`p-1.5 transition-colors ${viewLayout === 'list' ? 'font-medium' : 'text-nf-ink-3 hover:text-nf-ink hover:bg-muted/50'}`}
                             style={viewLayout === 'list' ? { backgroundColor: '#5BA89D18', color: '#5BA89D' } : {}}
                             title="List view"
                         >
@@ -676,7 +676,7 @@ export default function TopNavBar({
                                     </button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-36 p-1" align="end" sideOffset={8}>
-                                    <div className="text-[10px] font-medium text-muted-foreground px-2 py-1 mb-1 bg-muted/30 rounded-sm">Column Size</div>
+                                    <div className="text-[10px] font-medium text-nf-ink-3 px-2 py-1 mb-1 bg-muted/30 rounded-sm">Column Size</div>
                                     {['small', 'medium', 'large'].map(size => (
                                         <button
                                             key={size}
@@ -684,7 +684,7 @@ export default function TopNavBar({
                                             className="w-full text-left px-2 py-1.5 text-xs rounded-sm hover:bg-muted transition-colors flex items-center justify-between"
                                         >
                                             <span className="capitalize">{size}</span>
-                                            {boardColumnSize === size && <Check size={10} className="text-foreground" />}
+                                            {boardColumnSize === size && <Check size={10} className="text-nf-ink" />}
                                         </button>
                                     ))}
                                 </PopoverContent>
@@ -692,7 +692,7 @@ export default function TopNavBar({
                         ) : (
                             <button
                                 onClick={() => { setViewLayout('board'); }}
-                                className="p-1.5 transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                className="p-1.5 transition-colors text-nf-ink-3 hover:text-nf-ink hover:bg-muted/50"
                                 title="Board view"
                             >
                                 <Columns3 size={12} />
@@ -704,7 +704,7 @@ export default function TopNavBar({
                     {(todoFilters.length > 0 || todoProjectFilterIds.length > 0 || todoDateFilter.length > 0 || todoDateRangeFrom || todoDateRangeTo || todoCreatedFilter.length > 0 || todoCreatedRangeFrom || todoCreatedRangeTo) && (
                         <button
                             onClick={() => { setTodoFilters([]); setTodoProjectFilterIds([]); setTodoDateFilter([]); setTodoDateRangeFrom(''); setTodoDateRangeTo(''); setTodoCreatedFilter([]); setTodoCreatedRangeFrom(''); setTodoCreatedRangeTo(''); }}
-                            className="px-2 py-1 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            className="px-2 py-1 rounded-md text-xs text-nf-ink-3 hover:text-nf-ink hover:bg-muted transition-colors"
                         >
                             Clear filters
                         </button>
@@ -722,7 +722,7 @@ export default function TopNavBar({
                                         setCollapsedGroups(groups.map(g => g.key));
                                     }
                                 }}
-                                className="px-2 py-1 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                className="px-2 py-1 rounded-md text-xs text-nf-ink-3 hover:text-nf-ink hover:bg-muted transition-colors"
                             >
                                 {collapsedGroups.length > 0 ? 'Expand all' : 'Collapse all'}
                             </button>
